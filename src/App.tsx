@@ -40,7 +40,7 @@ import { SmartObject } from './modules/reflection/helpers';
 import { useModalStyles } from './styles/modal';
 import SectionTitle from './components/SectionTitle';
 import { FABRIC_JSON_ALLOWED_KEYS } from './constants';
-import { createSnappingLines, filterSnappingLines, snapToObject } from './modules/snapping';
+import { createSnappingLines, filterSnappingExcludes, snapToObject } from './modules/snapping';
 
 store.dispatch(appStart());
 
@@ -52,6 +52,10 @@ function App() {
 		key: 'snapDistance',
 		defaultValue: '2',
 	});
+	const xaxisRef = useRef<fabric.Rect | null>(null);
+	const yaxisRef = useRef<fabric.Rect | null>(null);
+	const xleftRef = useRef<number | null>(null);
+	const xrightRef = useRef<number | null>(null);
 	const theme = useMantineTheme();
 	const { classes } = useStyles();
 	const [showSidebar, setShowSidebar] = useState(true);
@@ -142,7 +146,53 @@ function App() {
 		canvasRef.current?.on('selection:cleared', function () {
 			setCurrentSelectedElements(null);
 		});
-
+		// Add a click event listener to the canvas
+		canvasRef.current.on('mouse:down', function (options) {
+			console.log('first', options);
+			if (options?.target?.data?.type === 'xruler') {
+				// Clicked on an object
+				console.log('seeee');
+				const pointer = canvasRef.current?.getPointer(options.e);
+				// add line
+				const line = new fabric.Line([pointer.x, 0, pointer.x, canvasRef.current?.height], {
+					stroke: '#000',
+					strokeWidth: 4,
+					hoverCursor: 'default',
+					lockRotation: true,
+					lockMovementY: true,
+					hasControls: false,
+					data: {
+						type: 'ruler',
+						id: generateId(),
+					},
+				});
+				canvasRef.current?.add(line);
+				// active object
+				canvasRef.current?.setActiveObject(line);
+				canvasRef.current?.requestRenderAll();
+				console.log('Clicked on object at x: ' + pointer.x + ', y: ' + pointer.y);
+			} else if (options?.target?.data?.type === 'yruler') {
+				// Clicked on an object
+				const pointer = canvasRef.current?.getPointer(options.e);
+				// add line
+				const line = new fabric.Line([0, pointer.y, canvasRef.current?.width, pointer.y], {
+					stroke: '#000',
+					strokeWidth: 4,
+					hoverCursor: 'default',
+					lockRotation: true,
+					lockMovementX: true,
+					hasControls: false,
+					data: {
+						type: 'ruler',
+						id: generateId(),
+					},
+				});
+				canvasRef.current?.add(line);
+				canvasRef.current?.setActiveObject(line);
+				canvasRef.current?.requestRenderAll();
+				console.log('Clicked on object at x: ' + pointer.x + ', y: ' + pointer.y);
+			}
+		});
 		return () => {
 			canvasRef.current?.dispose();
 		};
@@ -152,7 +202,7 @@ function App() {
 		const target = options.target as fabric.Object;
 		snapToObject(
 			target as snappingObjectType,
-			filterSnappingLines(canvasRef.current?.getObjects()) as snappingObjectType[],
+			filterSnappingExcludes(canvasRef.current?.getObjects()) as snappingObjectType[],
 			guidesRef,
 			canvasRef,
 			Number(snapDistance),
@@ -294,7 +344,7 @@ function App() {
 				...newArtboard,
 				state: {
 					...json,
-					objects: filterSnappingLines(json?.objects),
+					objects: filterSnappingExcludes(json?.objects),
 				},
 			},
 		];
@@ -497,7 +547,7 @@ function App() {
 					...item,
 					state: {
 						...json,
-						objects: filterSnappingLines(json?.objects),
+						objects: filterSnappingExcludes(json?.objects),
 					},
 				};
 			}
@@ -563,6 +613,7 @@ function App() {
 		);
 	};
 
+	console.log('zommmmm', canvasRef?.current?.width / canvasRef?.current?.getZoom());
 	const zoomToFit = () => {
 		const canvas = canvasRef.current;
 
@@ -702,6 +753,8 @@ function App() {
 			});
 
 			guidesRef.current = createSnappingLines(canvasRef);
+			renderAxis(canvasRef, xaxisRef, yaxisRef);
+
 			canvas.requestRenderAll();
 		});
 	}, [selectedArtboard, artboards]);
@@ -732,15 +785,190 @@ function App() {
 				if (!zoom || isNaN(zoom)) {
 					zoom = minZoom;
 				}
-				setZoomLevel(zoom);
+				console.log(xaxisRef.current?.width, zoom);
+				// xaxisRef.current?.set({
+				// 	width: xaxisRef.current?.width / zoom,
+				// 	height: xaxisRef.current?.height / zoom,
+				// });
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+
+				const vpt = canvas.viewportTransform;
+				const pan = canvasRef.current.viewportTransform;
+
+				xaxisRef.current.set({
+					left: -pan[4] / canvasRef.current?.getZoom(),
+					top: -pan[5] / canvasRef.current?.getZoom(),
+					// set to canvas current width
+					width: canvasRef.current?.width / canvasRef.current?.getZoom(),
+					height: 20 / canvasRef.current?.getZoom(),
+				});
+				yaxisRef.current.set({
+					left: -pan[4] / canvasRef.current?.getZoom(),
+					top: -pan[5] / canvasRef.current?.getZoom(),
+					// set to canvas current width
+					width: 20 / canvasRef.current?.getZoom(),
+					height: canvasRef.current?.height / canvasRef.current?.getZoom(),
+				});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'xrulermarker')
+					.forEach(item => {
+						console.log('first', item.left, item.top, item.width, item.height);
+						item.set({
+							// left: item.left / zoom,
+							// width: 10 / zoom,
+							height: 10 / zoom,
+							top: (-pan[5] + 10) / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'xrulermarkertext')
+					.forEach(item => {
+						const zoom = canvas.getZoom();
+						const scale = zoom / 1;
+						item.set({
+							// left: item.left / zoom,
+							// width: 10 / zoom,
+							// height: 10 / zoom,
+							//@ts-ignore
+							fontSize: 12 / zoom,
+							// scaleX: 1, // Reset the scale to avoid compounding scaling
+							// scaleY: 1,
+							top: -pan[5] / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'yrulermarker')
+					.forEach(item => {
+						console.log('first', item.left, item.top, item.width, item.height);
+						item.set({
+							width: 10 / canvasRef.current?.getZoom(),
+							// height: 1 / canvasRef.current?.getZoom(),
+							left: (-pan[4] + 10) / canvasRef.current?.getZoom(),
+							// top: -pan[5] / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'yrulermarkertext')
+					.forEach(item => {
+						console.log('first', item.left, item.top, item.width, item.height);
+						item.set({
+							width: 10 / canvasRef.current?.getZoom(),
+							height: 10 / canvasRef.current?.getZoom(),
+							left: -pan[4] / canvasRef.current?.getZoom(),
+							// top: -pan[5] / canvasRef.current?.getZoom(),
+							fontSize: 12 / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				xaxisRef.current?.setCoords();
+				yaxisRef.current?.setCoords();
+				// xrightRef.current += e.deltaY;
+				// xaxisRef.current?.set({ left: xleftRef.current });
+
+				yaxisRef.current?.setCoords();
+				setZoomLevel(zoom);
+				console.log('vpt', vpt);
+				canvas.renderAll();
 			} else {
 				const vpt = canvas.viewportTransform;
 				if (!vpt) {
 					return;
 				}
+				if (!xleftRef.current) {
+					xleftRef.current = vpt[4];
+				}
+				if (!xrightRef.current) {
+					xrightRef.current = vpt[5];
+				}
+				xleftRef.current += e.deltaX;
+				xrightRef.current += e.deltaY;
+				const pan = canvasRef.current.viewportTransform;
+
+				// Update the position of the xaxisRef box
+				// xaxisRef.current.set({
+				// 	left: -pan[4] / canvasRef.current?.getZoom(),
+				// 	top: -pan[5] / canvasRef.current?.getZoom(),
+				// });
+				// xaxisRef.current?.set({
+				// 	left: xleftRef.current / canvasRef.current?.getZoom(),
+				// 	top: xrightRef.current,
+				// });
 				vpt[4] -= e.deltaX;
 				vpt[5] -= e.deltaY;
+				xaxisRef.current.set({
+					left: -pan[4] / canvasRef.current?.getZoom(),
+					top: -pan[5] / canvasRef.current?.getZoom(),
+					// set to canvas current width
+					width: canvasRef.current?.width / canvasRef.current?.getZoom(),
+					height: 20 / canvasRef.current?.getZoom(),
+				});
+				xaxisRef.current?.setCoords();
+				yaxisRef.current.set({
+					left: -pan[4] / canvasRef.current?.getZoom(),
+					top: -pan[5] / canvasRef.current?.getZoom(),
+					width: 20 / canvasRef.current?.getZoom(),
+					height: canvasRef.current?.height / canvasRef.current?.getZoom(),
+				});
+				yaxisRef.current?.setCoords();
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'xrulermarker')
+					.forEach(item => {
+						console.log('first', item.left, item.top, item.width, item.height);
+						item.set({
+							height: 10 / canvasRef.current?.getZoom(),
+							top: (-pan[5] + 10) / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'xrulermarkertext')
+					.forEach(item => {
+						item.set({
+							// left: item.left / zoom,
+							width: 10 / canvasRef.current?.getZoom(),
+							height: 10 / canvasRef.current?.getZoom(),
+							top: -pan[5] / canvasRef.current?.getZoom(),
+							fontSize: 12 / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'yrulermarker')
+					.forEach(item => {
+						console.log('first', item.left, item.top, item.width, item.height);
+						item.set({
+							width: 10 / canvasRef.current?.getZoom(),
+							// height: 20 / canvasRef.current?.getZoom(),
+							left: (-pan[4] + 10) / canvasRef.current?.getZoom(),
+							// top: -pan[5] / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				canvasRef.current
+					?.getObjects()
+					.filter(item => item.data?.type === 'yrulermarkertext')
+					.forEach(item => {
+						item.set({
+							// left: item.left / zoom,
+							width: 10 / canvasRef.current?.getZoom(),
+							height: 10 / canvasRef.current?.getZoom(),
+							left: -pan[4] / canvasRef.current?.getZoom(),
+							fontSize: 12 / canvasRef.current?.getZoom(),
+						});
+						item.setCoords();
+					});
+				console.log('first', xrightRef.current, e.deltaY, vpt[5]);
+
 				setCanvasScrollPoints(vpt[4] + vpt[5]);
 				canvas.requestRenderAll();
 			}
@@ -1083,7 +1311,6 @@ function App() {
 		</Box>
 	);
 }
-
 const useStyles = createStyles(theme => ({
 	root: {
 		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[2],
@@ -1153,3 +1380,115 @@ const useStyles = createStyles(theme => ({
 }));
 
 export default App;
+function renderAxis(
+	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
+	xaxisRef: React.MutableRefObject<fabric.Rect | null>,
+	yaxisRef: React.MutableRefObject<fabric.Rect | null>,
+) {
+	const xaxis = new fabric.Rect({
+		left: 0,
+		top: 0,
+		fill: '#fff	',
+		width: canvasRef.current?.width,
+		height: 20,
+		selectable: false,
+		data: {
+			displayText: 'Shape',
+			id: generateId(),
+			ignoreSnapping: true,
+			type: 'xruler',
+		},
+	});
+	const yaxis = new fabric.Rect({
+		left: 0,
+		top: 0,
+		fill: '#fff',
+		width: 20,
+		selectable: false,
+		height: canvasRef.current?.height,
+		data: {
+			displayText: 'Shape',
+			id: generateId(),
+			type: 'yruler',
+			ignoreSnapping: true,
+		},
+	});
+	canvasRef.current?.remove(xaxisRef.current, yaxisRef.current);
+	xaxisRef.current = xaxis;
+	yaxisRef.current = yaxis;
+	// render ruler marker over xaxis
+	canvasRef.current?.add(xaxis, yaxis);
+
+	for (let i = 0; i < canvasRef.current?.width; i += 50) {
+		const line = new fabric.Line([i, 0, i, 10], {
+			stroke: '#000',
+			strokeWidth: 1,
+			left: i,
+			selectable: false,
+			hoverCursor: 'default',
+			top: 10,
+			data: {
+				ignoreSnapping: true,
+				type: 'xrulermarker',
+				id: generateId(),
+			},
+		});
+		line.bringForward();
+		const text = new fabric.Text(`${i}`, {
+			left: i - 5,
+			top: 0,
+			fontSize: 10,
+			fontFamily: 'Roboto',
+			fill: '#000',
+			selectable: false,
+			hoverCursor: 'default',
+			data: {
+				ignoreSnapping: true,
+				type: 'xrulermarkertext',
+				id: generateId(),
+			},
+		});
+		text.bringForward();
+		canvasRef.current?.add(line, text);
+	}
+	// render ruler marker over yaxis
+	for (let i = 0; i < canvasRef.current?.height; i += 50) {
+		const line = new fabric.Line([0, i, 10, i], {
+			stroke: '#000',
+			strokeWidth: 1,
+			top: i,
+			left: 10,
+			selectable: false,
+			hoverCursor: 'default',
+			data: {
+				type: 'yrulermarker',
+				ignoreSnapping: true,
+				id: generateId(),
+			},
+		});
+		// line.bringForward();
+		// add label to ruler
+		// totate text
+		const text = new fabric.Text(`${i}`, {
+			left: 0,
+			top: i + 10,
+			fontSize: 10,
+			fontFamily: 'Roboto',
+			angle: 270,
+			fill: '#000',
+			selectable: false,
+			hoverCursor: 'default',
+			data: {
+				type: 'yrulermarkertext',
+				ignoreSnapping: true,
+				id: generateId(),
+			},
+		});
+		// text.bringForward();
+		canvasRef.current?.add(line, text);
+	}
+	canvasRef.current?.on('object:scaling', function (options) {
+		console.log('scaling', options);
+	});
+	canvasRef.current?.requestRenderAll();
+}
