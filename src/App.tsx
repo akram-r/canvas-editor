@@ -41,7 +41,6 @@ import { useModalStyles } from './styles/modal';
 import SectionTitle from './components/SectionTitle';
 import { FABRIC_JSON_ALLOWED_KEYS } from './constants';
 import { createSnappingLines, filterSnappingExcludes, snapToObject } from './modules/snapping';
-import debounce from 'lodash-es/debounce';
 
 store.dispatch(appStart());
 
@@ -248,7 +247,6 @@ function App() {
 
 	const resetZoom = () => {
 		canvasRef.current?.setZoom(1);
-
 		// Place the canvas in the center of the screen
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
@@ -625,7 +623,6 @@ function App() {
 		);
 	};
 
-	console.log('zommmmm', canvasRef?.current?.width / canvasRef?.current?.getZoom());
 	const zoomToFit = () => {
 		const canvas = canvasRef.current;
 
@@ -697,7 +694,7 @@ function App() {
 			if (artboard) {
 				artboardRef.current = artboard as fabric.Rect;
 			}
-			// zoomToFit();
+			zoomToFit();
 
 			// create a style sheet
 			const artboardTexts = canvasRef.current?.getObjects().filter(item => item.type === 'textbox');
@@ -797,16 +794,9 @@ function App() {
 				if (!zoom || isNaN(zoom)) {
 					zoom = minZoom;
 				}
-				console.log(xaxisRef.current?.width, zoom);
-				// xaxisRef.current?.set({
-				// 	width: xaxisRef.current?.width / zoom,
-				// 	height: xaxisRef.current?.height / zoom,
-				// });
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-
 				const vpt = canvas.viewportTransform;
 				const pan = canvasRef.current.viewportTransform;
-
 				xaxisRef.current.set({
 					left: -pan[4] / canvasRef.current?.getZoom(),
 					top: -pan[5] / canvasRef.current?.getZoom(),
@@ -825,72 +815,9 @@ function App() {
 				});
 
 				handleZoomRuler(canvasRef, zoom, pan, canvas);
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'xrulermarker')
-				// 	.forEach(item => {
-				// 		console.log('first', item.left, item.top, item.width, item.height);
-				// 		item.set({
-				// 			// left: item.left / zoom,
-				// 			// width: 10 / zoom,
-				// 			height: 10 / zoom,
-				// 			top: (-pan[5] + 10) / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'xrulermarkertext')
-				// 	.forEach(item => {
-				// 		const zoom = canvas.getZoom();
-				// 		const scale = zoom / 1;
-				// 		item.set({
-				// 			// left: item.left / zoom,
-				// 			// width: 10 / zoom,
-				// 			// height: 10 / zoom,
-				// 			//@ts-ignore
-				// 			fontSize: 12 / zoom,
-				// 			// scaleX: 1, // Reset the scale to avoid compounding scaling
-				// 			// scaleY: 1,
-				// 			top: -pan[5] / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'yrulermarker')
-				// 	.forEach(item => {
-				// 		console.log('first', item.left, item.top, item.width, item.height);
-				// 		item.set({
-				// 			width: 10 / canvasRef.current?.getZoom(),
-				// 			// height: 1 / canvasRef.current?.getZoom(),
-				// 			left: (-pan[4] + 10) / canvasRef.current?.getZoom(),
-				// 			// top: -pan[5] / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'yrulermarkertext')
-				// 	.forEach(item => {
-				// 		console.log('first', item.left, item.top, item.width, item.height);
-				// 		item.set({
-				// 			width: 10 / canvasRef.current?.getZoom(),
-				// 			height: 10 / canvasRef.current?.getZoom(),
-				// 			left: -pan[4] / canvasRef.current?.getZoom(),
-				// 			// top: -pan[5] / canvasRef.current?.getZoom(),
-				// 			fontSize: 12 / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
 				xaxisRef.current?.setCoords();
 				yaxisRef.current?.setCoords();
-				// xrightRef.current += e.deltaY;
-				// xaxisRef.current?.set({ left: xleftRef.current });
-
-				yaxisRef.current?.setCoords();
 				setZoomLevel(zoom);
-				console.log('vpt', vpt);
 				canvas.renderAll();
 			} else {
 				const vpt = canvas.viewportTransform;
@@ -965,106 +892,6 @@ function App() {
 				const zoom = canvasRef.current?.getZoom();
 
 				handleZoomRuler(canvasRef, zoom, pan, canvas);
-				console.log('length', canvasRef.current?.getObjects().length);
-				// for (let i = nearest; i < (canvasRef.current?.width + -pan[4]) / zoom; i += 50) {
-				// 	const line = new fabric.Line([i, 0, i, 10 / zoom], {
-				// 		stroke: '#000',
-				// 		strokeWidth: 1 / zoom,
-				// 		left: i,
-				// 		selectable: false,
-				// 		hoverCursor: 'default',
-
-				// 		top: (-pan[5] + 10) / zoom,
-				// 		data: {
-				// 			ignoreSnapping: true,
-				// 			type: 'xrulermarker',
-				// 			id: generateId(),
-				// 		},
-				// 	});
-				// 	line.bringForward();
-				// 	const text = new fabric.Text(`${i}`, {
-				// 		left: i - 5,
-				// 		top: -pan[5] / zoom,
-				// 		fontSize: 10 / zoom,
-				// 		fontFamily: 'Roboto',
-				// 		fill: '#000',
-				// 		selectable: false,
-				// 		hoverCursor: 'default',
-				// 		data: {
-				// 			ignoreSnapping: true,
-				// 			type: 'xrulermarkertext',
-				// 			id: generateId(),
-				// 		},
-				// 	});
-				// 	// const line2 = new fabric.Line([i, 0, i, canvasRef.current?.height], {
-				// 	// 	stroke: '#000',
-				// 	// 	top: -pan[5] / zoom + 10,
-				// 	// 	strokeWidth: 1 / zoom,
-				// 	// 	left: i,
-				// 	// 	selectable: false,
-				// 	// 	hoverCursor: 'default',
-				// 	// 	data: {
-				// 	// 		type: 'grid',
-				// 	// 		ignoreSnapping: true,
-				// 	// 		id: generateId(),
-				// 	// 	},
-				// 	// });
-				// 	text.bringForward();
-				// 	canvasRef.current?.add(line, text);
-				// }
-				// adjustGrid(canvasRef, 40, 40);
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'xrulermarker')
-				// 	.forEach(item => {
-				// 		console.log('first', item.left, item.top, item.width, item.height);
-				// 		item.set({
-				// 			height: 10 / canvasRef.current?.getZoom(),
-				// 			top: (-pan[5] + 10) / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'xrulermarkertext')
-				// 	.forEach(item => {
-				// 		item.set({
-				// 			// left: item.left / zoom,
-				// 			width: 10 / canvasRef.current?.getZoom(),
-				// 			height: 10 / canvasRef.current?.getZoom(),
-				// 			top: -pan[5] / canvasRef.current?.getZoom(),
-				// 			fontSize: 12 / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'yrulermarker')
-				// 	.forEach(item => {
-				// 		console.log('first', item.left, item.top, item.width, item.height);
-				// 		item.set({
-				// 			width: 10 / canvasRef.current?.getZoom(),
-				// 			// height: 20 / canvasRef.current?.getZoom(),
-				// 			left: (-pan[4] + 10) / canvasRef.current?.getZoom(),
-				// 			// top: -pan[5] / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				// canvasRef.current
-				// 	?.getObjects()
-				// 	.filter(item => item.data?.type === 'yrulermarkertext')
-				// 	.forEach(item => {
-				// 		item.set({
-				// 			// left: item.left / zoom,
-				// 			width: 10 / canvasRef.current?.getZoom(),
-				// 			height: 10 / canvasRef.current?.getZoom(),
-				// 			left: -pan[4] / canvasRef.current?.getZoom(),
-				// 			fontSize: 12 / canvasRef.current?.getZoom(),
-				// 		});
-				// 		item.setCoords();
-				// 	});
-				console.log('first', xrightRef.current, e.deltaY, vpt[5]);
-
 				setCanvasScrollPoints(vpt[4] + vpt[5]);
 				canvas.requestRenderAll();
 			}
@@ -1476,6 +1303,7 @@ const useStyles = createStyles(theme => ({
 }));
 
 export default App;
+
 function handleZoomRuler(
 	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
 	zoom: number,
@@ -1528,32 +1356,13 @@ function handleZoomRuler(
 		if (zoom >= 6 && zoom < 8) return 10;
 		if (zoom >= 8) return 5;
 	};
+	const diff = (num: number) => {
+		// find digits in number
+		const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
+		return 3 + digits;
+	};
 	const nearest = Math.round(left / interval()) * interval();
-	// const nearest = Math.round(left / 50) * 50;
-
-	console.log('inter', interval());
-	console.log('lenght', canvasRef.current?.getObjects().length, nearest);
 	for (let i = nearest; i < (canvasRef.current?.width + -pan[4]) / canvas.getZoom(); i += interval()) {
-		const diff = (num: number) => {
-			// find digits in number
-			const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
-			console.log('diff', num, digits);
-			return 3 + digits;
-		};
-		console.log(diff(i));
-		// const line = new fabric.Line([i, 0, i, 5 / zoom], {
-		// 	stroke: '#000',
-		// 	strokeWidth: 1 / zoom,
-		// 	left: i,
-		// 	selectable: false,
-		// 	hoverCursor: 'default',
-		// 	top: (-pan[5] + 16) / zoom,
-		// 	data: {
-		// 		ignoreSnapping: true,
-		// 		type: 'xrulermarker',
-		// 		id: generateId(),
-		// 	},
-		// });
 		const rect = new fabric.Rect({
 			left: i,
 			top: (-pan[5] + 16) / zoom,
@@ -1568,7 +1377,6 @@ function handleZoomRuler(
 				id: generateId(),
 			},
 		});
-		// line.bringForward();
 
 		const text = new fabric.Text(`${i}`, {
 			left: i - Math.abs(diff(i)) / zoom,
@@ -1584,18 +1392,6 @@ function handleZoomRuler(
 				id: generateId(),
 			},
 		});
-		// const line2 = new fabric.Line([i, 0, i, canvasRef.current?.height], {
-		// 	stroke: '#000',
-		// 	strokeWidth: 1 / zoom,
-		// 	left: i,
-		// 	selectable: false,
-		// 	hoverCursor: 'default',
-		// 	data: {
-		// 		type: 'grid',
-		// 		ignoreSnapping: true,
-		// 		id: generateId(),
-		// 	},
-		// });
 		text.bringForward();
 		canvasRef.current?.add(rect, text);
 	}
@@ -1605,10 +1401,8 @@ function handleZoomRuler(
 		const diff = (num: number) => {
 			// find digits in number
 			const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
-			console.log('diff', num, digits);
 			return 3 + digits;
 		};
-		console.log(diff(i));
 		const line = new fabric.Line([0, i, 5 / zoom, i], {
 			stroke: '#000',
 			strokeWidth: 2 / zoom,
@@ -1697,163 +1491,7 @@ function renderAxis(
 	canvasRef.current?.remove(xaxisRef.current, yaxisRef.current);
 	xaxisRef.current = xaxis;
 	yaxisRef.current = yaxis;
-	// render ruler marker over xaxis
 	canvasRef.current?.add(xaxis, yaxis);
-
-	// for (let i = 0; i < canvasRef.current?.width; i += 50) {
-	// 	const line = new fabric.Line([i, 0, i, 10], {
-	// 		stroke: '#000',
-	// 		strokeWidth: 1,
-	// 		left: i,
-	// 		selectable: false,
-	// 		hoverCursor: 'default',
-	// 		top: 10,
-	// 		data: {
-	// 			ignoreSnapping: true,
-	// 			type: 'xrulermarker',
-	// 			id: generateId(),
-	// 		},
-	// 	});
-	// 	line.bringForward();
-	// 	const text = new fabric.Text(`${i}`, {
-	// 		left: i - 5,
-	// 		top: 0,
-	// 		fontSize: 10,
-	// 		fontFamily: 'Roboto',
-	// 		fill: '#000',
-	// 		selectable: false,
-	// 		hoverCursor: 'default',
-	// 		data: {
-	// 			ignoreSnapping: true,
-	// 			type: 'xrulermarkertext',
-	// 			id: generateId(),
-	// 		},
-	// 	});
-	// 	text.bringForward();
-	// 	// const line2 = new fabric.Line([0, i, canvasRef.current?.width, i], {
-	// 	// 	stroke: '#000',
-	// 	// 	strokeWidth: 1,
-	// 	// 	top: i,
-	// 	// 	left: 0,
-	// 	// 	selectable: false,
-	// 	// 	hoverCursor: 'default',
-	// 	// 	data: {
-	// 	// 		type: 'grid',
-	// 	// 		ignoreSnapping: true,
-	// 	// 		id: generateId(),
-	// 	// 	},
-	// 	// });
-	// 	canvasRef.current?.add(line, text);
-	// }
-	// // render ruler marker over yaxis
-	// for (let i = 0; i < canvasRef.current?.height; i += 50) {
-	// 	const line = new fabric.Line([0, i, 10, i], {
-	// 		stroke: '#000',
-	// 		strokeWidth: 1,
-	// 		top: i,
-	// 		left: 10,
-	// 		selectable: false,
-	// 		hoverCursor: 'default',
-	// 		data: {
-	// 			type: 'yrulermarker',
-	// 			ignoreSnapping: true,
-	// 			id: generateId(),
-	// 		},
-	// 	});
-	// 	// line.bringForward();
-	// 	// add label to ruler
-	// 	// totate text
-	// 	const text = new fabric.Text(`${i}`, {
-	// 		left: 0,
-	// 		top: i + 10,
-	// 		fontSize: 10,
-	// 		fontFamily: 'Roboto',
-	// 		angle: 270,
-	// 		fill: '#000',
-	// 		selectable: false,
-	// 		hoverCursor: 'default',
-	// 		data: {
-	// 			type: 'yrulermarkertext',
-	// 			ignoreSnapping: true,
-	// 			id: generateId(),
-	// 		},
-	// 	});
-
-	// 	// const line2 = new fabric.Line([i, 0, i, canvasRef.current?.height], {
-	// 	// 	stroke: '#000',
-	// 	// 	strokeWidth: 1,
-	// 	// 	left: i,
-	// 	// 	selectable: false,
-	// 	// 	hoverCursor: 'default',
-	// 	// 	data: {
-	// 	// 		type: 'grid',
-	// 	// 		ignoreSnapping: true,
-	// 	// 		id: generateId(),
-	// 	// 	},
-	// 	// });
-	// 	// line.bringForward();
-
-	// 	canvasRef.current?.add(line, text);
-	// }
-
 	handleZoomRuler(canvasRef, 1, [0, 0, 0, 0, 0, 0], canvasRef.current as fabric.Canvas);
-	canvasRef.current?.on('object:scaling', function (options) {
-		console.log('scaling', options);
-	});
-	canvasRef.current?.requestRenderAll();
-}
-
-// function renderGrid(canvasRef: React.MutableRefObject<fabric.Canvas | null>, gridWidth: number, gridHeight: number) {
-// 	{
-// 		// render grid
-// 		for (let i = 0; i < canvasRef.current?.width; i += gridWidth) {
-// 			const line = new fabric.Line([i, 0, i, canvasRef.current?.height], {
-// 				stroke: '#000',
-// 				strokeWidth: 1,
-// 				left: i,
-// 				selectable: false,
-// 				hoverCursor: 'default',
-// 				data: {
-// 					type: 'grid',
-// 					ignoreSnapping: true,
-// 					id: generateId(),
-// 				},
-// 			});
-// 			line.bringForward();
-// 			canvasRef.current?.add(line);
-// 		}
-// 		// render grid
-// 		for (let i = 0; i < canvasRef.current?.height; i += gridHeight) {
-// 			const line = new fabric.Line([0, i, canvasRef.current?.width, i], {
-// 				stroke: '#000',
-// 				strokeWidth: 1,
-// 				top: i,
-// 				left: 0,
-// 				selectable: false,
-// 				hoverCursor: 'default',
-// 				data: {
-// 					type: 'grid',
-// 					ignoreSnapping: true,
-// 					id: generateId(),
-// 				},
-// 			});
-// 			line.bringForward();
-// 			canvasRef.current?.add(line);
-// 		}
-// 		canvasRef.current?.requestRenderAll();
-// 	}
-// }
-
-function adjustGrid(canvasRef: React.MutableRefObject<fabric.Canvas | null>, gridWidth: number, gridHeight: number) {
-	// render grid
-	canvasRef.current
-		?.getObjects()
-		.filter(item => item.data?.type === 'grid')
-		.forEach(item => {
-			item.set({
-				strokeWidth: 1 / canvasRef.current?.getZoom(),
-			});
-			item.setCoords();
-		});
 	canvasRef.current?.requestRenderAll();
 }
