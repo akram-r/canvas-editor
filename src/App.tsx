@@ -1407,7 +1407,74 @@ function App() {
 		</Box>
 	);
 }
-const useStyles = createStyles(theme => ({}));
+const useStyles = createStyles(theme => ({
+	root: {
+		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[2],
+		width: '100vw',
+		height: '100vh',
+		overflow: 'hidden',
+	},
+	header: {
+		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[0],
+		borderBottom: `1px solid ${theme.colors.gray[3]}`,
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+	},
+	logo: {
+		fontSize: theme.fontSizes.md,
+		fontWeight: 700,
+		color: theme.colors.violet[7],
+	},
+	// Create a system where the left and the right panels are on top of the center
+	shell: {
+		height: 'calc(100vh - 4rem)',
+		position: 'relative',
+	},
+	left: {
+		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[0],
+		borderRight: `1px solid ${theme.colors.gray[3]}`,
+		width: 300,
+		display: 'grid',
+		gridTemplateRows: '50% 50%',
+		height: '100%',
+		zIndex: 1,
+		position: 'absolute',
+		left: 0,
+		overflowY: 'auto',
+		paddingBlockEnd: '1rem',
+	},
+	right: {
+		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[0],
+		borderLeft: `1px solid ${theme.colors.gray[3]}`,
+		zIndex: 1,
+		position: 'absolute',
+		right: 0,
+		width: 300,
+		height: '100%',
+		padding: '1rem',
+	},
+	center: {
+		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[2],
+		borderLeft: `1px solid ${theme.colors.gray[3]}`,
+		borderRight: `1px solid ${theme.colors.gray[3]}`,
+		flexGrow: 1,
+		flexShrink: 1,
+		zIndex: 0,
+	},
+	artboardButton: {
+		cursor: 'pointer',
+		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[0],
+		padding: '0.5rem 1rem',
+		transition: 'background-color 100ms ease',
+		height: 40,
+		width: '100%',
+		'&:hover': {
+			backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[2],
+		},
+	},
+}));
+
 export default App;
 function handleZoomRuler(
 	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
