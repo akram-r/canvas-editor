@@ -1,7 +1,41 @@
+import { fabric } from 'fabric';
+import { generateId } from '../../utils';
+import { getCanvasVisibleTopLeft } from '../utils/canvasUtils';
+
+export const RULER_ELEMENTS = {
+	X_RULER_BACKGROUND: 'X_RULER_BACKGROUND',
+	Y_RULER_BACKGROUND: 'Y_RULER_BACKGROUND',
+	X_RULER_LINE: 'X_RULER_LINE',
+	Y_RULER_LINE: 'Y_RULER_LINE',
+	X_RULER_MARKER: 'X_RULER_MARKER',
+	Y_RULER_MARKER: 'Y_RULER_MARKER',
+	X_RULER_MARKER_TEXT: 'X_RULER_MARKER_TEXT',
+	Y_RULER_MARKER_TEXT: 'Y_RULER_MARKER_TEXT',
+} as const;
+
+export function getCanvasZoomScale(zoom: number): number {
+	if (zoom <= 0.05) return 2000;
+	if (zoom <= 0.1) return 1000;
+	if (zoom <= 0.2) return 500;
+	if (zoom <= 0.5) return 250;
+	if (zoom < 1) return 100;
+	if (zoom >= 1 && zoom < 3) return 50;
+	if (zoom >= 3 && zoom < 6) return 25;
+	if (zoom >= 6 && zoom < 8) return 10;
+	if (zoom >= 8) return 5;
+	return 100;
+}
+
+const getAdjustedMarkerTextPosition = (num: number) => {
+	const sign = Math.sign(num) > 0;
+	const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
+	if (num === 0) return 3;
+	return sign ? 3 + digits : 10;
+};
 export function handleZoomRuler(
 	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
 	zoom: number,
-	pan: number[] | undefined,
+	pan: number[],
 	canvas: fabric.Canvas,
 	blockRef: React.MutableRefObject<fabric.Rect | null>,
 ) {
@@ -9,60 +43,21 @@ export function handleZoomRuler(
 		?.getObjects()
 		.filter(
 			item =>
-				item.data?.type === 'xrulermarker' ||
-				item.data?.type === 'xrulermarkertext' ||
-				item.data?.type === 'grid' ||
-				item.data?.type === 'yrulermarker' ||
-				item.data?.type === 'yrulermarkertext',
+				item.data?.type === RULER_ELEMENTS.X_RULER_MARKER ||
+				item.data?.type === RULER_ELEMENTS.X_RULER_MARKER_TEXT ||
+				item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER ||
+				item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
 		)
 		.forEach(item => {
 			canvasRef.current?.remove(item);
 		});
 
-	const getVisibleTopLeft = (canvasRef: React.MutableRefObject<fabric.Canvas | null>) => {
-		const canvas = canvasRef.current as fabric.Canvas;
-		const vpt = canvas.viewportTransform as unknown as fabric.IPoint[];
-		const scrollTop = window.scrollY || document.documentElement.scrollTop;
-		const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		const visibleTop = -vpt[5] / vpt[0] + scrollTop / vpt[0];
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		const visibleLeft = -vpt[4] / vpt[0] + scrollLeft / vpt[0];
-		return { top: visibleTop, left: visibleLeft };
-	};
-	const { left, top } = getVisibleTopLeft(canvasRef);
-	// find value nearest to 10
-	function roundToNearest10(number) {
-		return Math.round(number / 10) * 10;
-	}
+	const { left, top } = getCanvasVisibleTopLeft(canvasRef);
 
-	const interval = () => {
-		if (zoom <= 0.05) return 2000;
-		if (zoom <= 0.1) return 1000;
-		if (zoom <= 0.2) return 500;
-		if (zoom <= 0.5) return 250;
-		if (zoom < 1) return 100;
-		if (zoom >= 1 && zoom < 3) return 50;
-		// if (zoom >= 2 && zoom < 3) return 25;
-		if (zoom >= 3 && zoom < 6) return 25;
-		// if (zoom >= 4 && zoom < 5) return 10;
-		if (zoom >= 6 && zoom < 8) return 10;
-		if (zoom >= 8) return 5;
-	};
-	const diff = (num: number) => {
-		// find digits in number
-
-		const sign = Math.sign(num) > 0;
-		console.log(sign);
-		const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
-		if (num === 0) return 3;
-		return sign ? 3 + digits : 10;
-	};
-	const nearest = Math.round(left / interval()) * interval();
-	for (let i = nearest; i < (canvasRef.current?.width + -pan[4]) / canvas.getZoom(); i += interval()) {
-		console.count('xrulermarker');
+	const interval = getCanvasZoomScale(zoom);
+	const nearest = Math.round(left / interval) * interval;
+	const canvasWidth = canvasRef.current?.width as number;
+	for (let i = nearest; i < (canvasWidth + -pan[4]) / canvas.getZoom(); i += interval) {
 		const line = new fabric.Line([i, 0, i, 5 / zoom], {
 			stroke: '#000',
 			strokeWidth: 2 / zoom,
@@ -72,23 +67,20 @@ export function handleZoomRuler(
 			top: (-pan[5] + 16) / zoom,
 			data: {
 				ignoreSnapping: true,
-				type: 'yrulermarker',
+				type: RULER_ELEMENTS.X_RULER_MARKER,
 				id: generateId(),
 			},
 		});
 		const text = new fabric.Text(`${i}`, {
-			left: i - diff(i) / zoom,
-			// left: i - Math.abs(diff(i)) / zoom,
+			left: i - getAdjustedMarkerTextPosition(i) / zoom,
 			top: -pan[5] / zoom,
 			fontSize: 10 / zoom,
-
 			fontFamily: 'Monospace',
-			// fill: '#000',
 			selectable: false,
 			hoverCursor: 'default',
 			data: {
 				ignoreSnapping: true,
-				type: 'xrulermarkertext',
+				type: RULER_ELEMENTS.X_RULER_MARKER_TEXT,
 				id: generateId(),
 			},
 		});
@@ -96,13 +88,9 @@ export function handleZoomRuler(
 		canvasRef.current?.add(line, text);
 	}
 
-	const nearestTop = Math.round(top / interval()) * interval();
-	for (let i = nearestTop; i < (canvasRef.current?.height + -pan[5]) / canvas.getZoom(); i += interval()) {
-		const diff = (num: number) => {
-			// find digits in number
-			const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
-			return 3 + digits;
-		};
+	const nearestTop = Math.round(top / interval) * interval;
+	const canvasHeight = canvasRef.current?.height as number;
+	for (let i = nearestTop; i < (canvasHeight + -pan[5]) / canvas.getZoom(); i += interval) {
 		const line = new fabric.Line([0, i, 5 / zoom, i], {
 			stroke: '#000',
 			strokeWidth: 2 / zoom,
@@ -112,42 +100,25 @@ export function handleZoomRuler(
 			left: (-pan[4] + 16) / zoom,
 			data: {
 				ignoreSnapping: true,
-				type: 'yrulermarker',
+				type: RULER_ELEMENTS.Y_RULER_MARKER,
 				id: generateId(),
 			},
 		});
-		line.bringForward();
-
 		const text = new fabric.Text(`${i}`, {
-			top: i - Math.abs(diff(i)) / zoom,
+			top: i + getAdjustedMarkerTextPosition(i) / zoom,
 			left: -pan[4] / zoom,
 			fontSize: 10 / zoom,
-			fontFamily: 'Inter',
+			fontFamily: 'Monospace',
 			fill: '#000',
 			selectable: false,
 			angle: 270,
 			hoverCursor: 'default',
 			data: {
 				ignoreSnapping: true,
-				type: 'yrulermarkertext',
+				type: RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
 				id: generateId(),
 			},
 		});
-		// const line2 = new fabric.Line([i, 0, i, canvasRef.current?.height], {
-		// 	stroke: '#000',
-		// 	strokeWidth: 1 / zoom,
-		// 	left: i,
-		// 	selectable: false,
-		// 	hoverCursor: 'default',
-		// 	data: {
-		// 		type: 'grid',
-		// 		ignoreSnapping: true,
-		// 		id: generateId(),
-		// 	},
-		// });
-		text.bringForward();
-		text.moveTo(0);
-		line.moveTo(0);
 		canvasRef.current?.add(line, text);
 	}
 	blockRef.current?.set({
@@ -157,7 +128,7 @@ export function handleZoomRuler(
 		width: 20 / zoom,
 		height: 20 / zoom,
 	});
-	blockRef.current.moveTo(canvasRef.current?.getObjects().length - 1);
+	blockRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) - 1);
 	blockRef.current?.setCoords();
 	canvasRef.current?.requestRenderAll();
 }
@@ -170,7 +141,6 @@ export function renderAxis(
 	colorScheme: string,
 ) {
 	const zoom = canvasRef.current?.getZoom() as number;
-	console.log('first', colorScheme);
 	const xaxis = new fabric.Rect({
 		left: 0,
 		top: 0,
@@ -184,7 +154,7 @@ export function renderAxis(
 			displayText: 'Shape',
 			id: generateId(),
 			ignoreSnapping: true,
-			type: 'xruler',
+			type: RULER_ELEMENTS.X_RULER_BACKGROUND,
 		},
 	});
 	const yaxis = new fabric.Rect({
@@ -199,7 +169,7 @@ export function renderAxis(
 		data: {
 			displayText: 'Shape',
 			id: generateId(),
-			type: 'yruler',
+			type: RULER_ELEMENTS.Y_RULER_BACKGROUND,
 			ignoreSnapping: true,
 		},
 	});
@@ -219,7 +189,12 @@ export function renderAxis(
 			ignoreSnapping: true,
 		},
 	});
-	canvasRef.current?.remove(xaxisRef.current, yaxisRef.current, blockRef.current);
+
+	canvasRef.current?.remove(
+		xaxisRef.current as fabric.Rect,
+		yaxisRef.current as fabric.Rect,
+		blockRef.current as fabric.Rect,
+	);
 	xaxisRef.current = xaxis;
 	yaxisRef.current = yaxis;
 	blockRef.current = block;
@@ -234,11 +209,11 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 	const canvasHeight = canvasRef.current?.height as number;
 	const canvasWidth = canvasRef.current?.width as number;
 	allObjects
-		.filter(x => x.data.type === 'xRulerLine')
+		.filter(x => x.data.type === RULER_ELEMENTS.X_RULER_LINE)
 		.forEach(x => {
 			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 			x?.set({
-				padding: 10,
+				padding: 15 / zoom,
 				strokeWidth: 2 / zoom,
 				top: (-pan[5] + 20) / zoom,
 				height: canvasHeight / zoom,
@@ -246,12 +221,11 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 		});
 
 	allObjects
-		.filter(x => x.data.type === 'yRulerLine')
+		.filter(x => x.data.type === RULER_ELEMENTS.Y_RULER_LINE)
 		.forEach(x => {
-			console.log('y', x);
 			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 			x?.set({
-				padding: 10 / zoom,
+				padding: 15 / zoom,
 				strokeWidth: 2 / zoom,
 				left: (-pan[4] + 20) / zoom,
 				width: canvasWidth / zoom,

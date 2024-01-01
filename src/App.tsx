@@ -41,7 +41,7 @@ import { useModalStyles } from './styles/modal';
 import SectionTitle from './components/SectionTitle';
 import { FABRIC_JSON_ALLOWED_KEYS } from './constants';
 import { createSnappingLines, filterSnappingExcludes, snapToObject } from './modules/snapping';
-import { handleZoomRuler, renderAxis, rulerMarkerAdjust } from './modules/ruler';
+import { RULER_ELEMENTS, handleZoomRuler, renderAxis, rulerMarkerAdjust } from './modules/ruler';
 
 store.dispatch(appStart());
 
@@ -149,20 +149,21 @@ function App() {
 		// Add a click event listener to the canvas
 		canvasRef.current.on('mouse:down', function (options) {
 			if (
-				options?.target?.data?.type === 'xruler' ||
-				options?.target?.data?.type === 'xrulermarker' ||
-				options?.target?.data?.type === 'xrulermarkertext'
+				[
+					RULER_ELEMENTS.X_RULER_BACKGROUND,
+					RULER_ELEMENTS.X_RULER_MARKER,
+					RULER_ELEMENTS.X_RULER_MARKER_TEXT,
+				].includes(options?.target?.data?.type)
 			) {
 				const zoom = canvasRef.current?.getZoom() as number;
-				console.log(zoom);
 				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
 				const canvasHeight = (canvasRef.current?.height as number) / zoom;
 				const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 				const line = new fabric.Line([pointer.x, (-pan[5] + 20) / zoom, pointer.x, canvasHeight], {
 					stroke: '#000',
 					strokeWidth: 2 / zoom,
-					hoverCursor: 'default',
 					hasControls: false,
+					hasBorders: false,
 					lockRotation: true,
 					lockMovementY: true,
 					lockScalingX: true,
@@ -171,8 +172,9 @@ function App() {
 					lockSkewingX: true,
 					lockSkewingY: true,
 					lockScalingFlip: true,
+					padding: 10 / zoom,
 					data: {
-						type: 'xRulerLine',
+						type: RULER_ELEMENTS.X_RULER_LINE,
 						id: generateId(),
 					},
 				});
@@ -180,9 +182,11 @@ function App() {
 				canvasRef.current?.add(line);
 				canvasRef.current?.renderAll();
 			} else if (
-				options?.target?.data?.type === 'yruler' ||
-				options?.target?.data?.type === 'yrulermarker' ||
-				options?.target?.data?.type === 'yrulermarkertext'
+				[
+					RULER_ELEMENTS.Y_RULER_BACKGROUND,
+					RULER_ELEMENTS.Y_RULER_MARKER,
+					RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
+				].includes(options?.target?.data?.type)
 			) {
 				const zoom = canvasRef.current?.getZoom() as number;
 				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
@@ -190,20 +194,20 @@ function App() {
 				const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 				const line = new fabric.Line([(-pan[4] + 20) / zoom, pointer.y, canvasWidth, pointer.y], {
 					stroke: '#000',
-					strokeWidth: 2 / canvasRef.current?.getZoom(),
-					hoverCursor: 'default',
+					strokeWidth: 2 / zoom,
 					lockMovementX: true,
 					hasControls: false,
 					lockRotation: true,
-					lockMovementY: true,
 					lockScalingX: true,
 					lockScalingY: true,
+					hasBorders: false,
 					lockUniScaling: true,
 					lockSkewingX: true,
 					lockSkewingY: true,
 					lockScalingFlip: true,
+					padding: 10 / zoom,
 					data: {
-						type: 'yRulerLine',
+						type: RULER_ELEMENTS.Y_RULER_LINE,
 						id: generateId(),
 					},
 				});
@@ -260,7 +264,9 @@ function App() {
 		// Place the canvas in the center of the screen
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
-		handleZoomRuler(canvasRef, 1, [0, 0, 0, 0, 0, 0], canvasRef.current as fabric.Canvas, blockRef);
+		const viewportTransform = canvasRef.current?.viewportTransform as unknown as number[];
+		renderAxis(canvasRef, xaxisRef, yaxisRef, blockRef, colorScheme);
+		handleZoomRuler(canvasRef, 1, viewportTransform, canvasRef.current as fabric.Canvas, blockRef);
 	};
 
 	const centerBoardToCanvas = (artboardRef: React.MutableRefObject<fabric.Rect | null>) => {
@@ -368,7 +374,6 @@ function App() {
 				},
 			},
 		];
-		console.log(updatedArtboards);
 		dispatch(setArtboards(updatedArtboards));
 		newArtboardForm.reset();
 		close();
@@ -658,7 +663,7 @@ function App() {
 		// const zoom = Math.min(canvasWidth / artboardWidth, canvasHeight / artboardHeight);
 
 		// Zoom to the center of the canvas
-		zoomFromCenter(zoom);
+		// zoomFromCenter(zoom);
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || zoom);
 	};
@@ -814,7 +819,7 @@ function App() {
 					zoom = minZoom;
 				}
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-				const pan = canvasRef?.current?.viewportTransform as unknown as fabric.IPoint[];
+				const pan = canvasRef?.current?.viewportTransform as number[];
 				const canvasWidth = canvasRef?.current?.width as number;
 				const canvasHeight = canvasRef?.current?.height as number;
 				xaxisRef?.current?.set({
@@ -832,9 +837,9 @@ function App() {
 					height: canvasHeight / zoom,
 				});
 				rulerMarkerAdjust(canvasRef);
-				xaxisRef.current?.moveTo(canvasRef.current?.getObjects().length + 1);
-				yaxisRef.current?.moveTo(canvasRef.current?.getObjects().length + 2);
-				blockRef.current?.moveTo(canvasRef.current?.getObjects().length + 3);
+				xaxisRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) + 1);
+				yaxisRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) + 2);
+				blockRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) + 3);
 
 				handleZoomRuler(canvasRef, zoom, pan, canvas, blockRef);
 				xaxisRef.current?.setCoords();
@@ -842,65 +847,48 @@ function App() {
 				setZoomLevel(zoom);
 				canvas.renderAll();
 			} else {
-				const vpt = canvas.viewportTransform;
-				if (!vpt) {
+				const pan = canvas.viewportTransform as number[];
+				if (!pan) {
 					return;
 				}
-				const pan = canvasRef?.current?.viewportTransform;
-				xaxisRef.current?.moveTo(canvasRef.current?.getObjects().length - 1);
-				yaxisRef.current?.moveTo(canvasRef.current?.getObjects().length - 1);
-				blockRef.current?.moveTo(canvasRef.current?.getObjects().length - 1);
+				xaxisRef.current?.moveTo((canvasRef.current?.getObjects().length as number) - 1);
+				yaxisRef.current?.moveTo((canvasRef.current?.getObjects().length as number) - 1);
+				blockRef.current?.moveTo((canvasRef.current?.getObjects().length as number) - 1);
 
-				vpt[4] -= e.deltaX;
-				vpt[5] -= e.deltaY;
+				pan[4] -= e.deltaX;
+				pan[5] -= e.deltaY;
+				const zoom = canvasRef?.current?.getZoom() as number;
+				const canvasWidth = canvasRef?.current?.width as number;
+				const canvasHeight = canvasRef?.current?.height as number;
 				xaxisRef?.current?.set({
-					left: -pan[4] / canvasRef.current?.getZoom(),
-					top: -pan[5] / canvasRef.current?.getZoom(),
-					width: canvasRef.current?.width / canvasRef.current?.getZoom(),
-					height: 20 / canvasRef.current?.getZoom(),
+					left: -pan[4] / zoom,
+					top: -pan[5] / zoom,
+					width: canvasWidth / zoom,
+					height: 20 / zoom,
 				});
 				xaxisRef.current?.setCoords();
 				yaxisRef?.current?.set({
-					left: -pan[4] / canvasRef.current?.getZoom(),
-					top: -pan[5] / canvasRef.current?.getZoom(),
-					width: 20 / canvasRef.current?.getZoom(),
-					height: canvasRef.current?.height / canvasRef.current?.getZoom(),
+					left: -pan[4] / zoom,
+					top: -pan[5] / zoom,
+					width: 20 / zoom,
+					height: canvasHeight / zoom,
 				});
 				yaxisRef.current?.setCoords();
 				canvasRef.current
 					?.getObjects()
 					.filter(
 						item =>
-							item.data?.type === 'xrulermarker' ||
-							item.data?.type === 'xrulermarkertext' ||
-							item.data?.type === 'yrulermarker' ||
-							item.data?.type === 'yrulermarkertext',
+							item.data?.type === RULER_ELEMENTS.X_RULER_MARKER ||
+							item.data?.type === RULER_ELEMENTS.X_RULER_MARKER_TEXT ||
+							item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER ||
+							item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
 					)
 					.forEach(item => {
 						canvasRef.current?.remove(item);
 					});
-
-				const getVisibleTopLeft = (canvasRef: React.MutableRefObject<fabric.Canvas | null>) => {
-					const canvas = canvasRef.current as fabric.Canvas;
-					const vpt = canvas.viewportTransform as unknown as fabric.IPoint[];
-					const scrollTop = window.scrollY || document.documentElement.scrollTop;
-					const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
-					// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-					// @ts-ignore
-					const visibleTop = -vpt[5] / vpt[0] + scrollTop / vpt[0];
-					// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-					// @ts-ignore
-					const visibleLeft = -vpt[4] / vpt[0] + scrollLeft / vpt[0];
-					return { top: visibleTop, left: visibleLeft };
-				};
 				rulerMarkerAdjust(canvasRef);
-				const { left } = getVisibleTopLeft(canvasRef);
-				// find value nearest to 10
-				const nearest = Math.round(left / 50) * 50;
-				const zoom = canvasRef.current?.getZoom();
-
 				handleZoomRuler(canvasRef, zoom, pan, canvas, blockRef);
-				setCanvasScrollPoints(vpt[4] + vpt[5]);
+				setCanvasScrollPoints(pan[4] + pan[5]);
 				canvas.requestRenderAll();
 			}
 		};
