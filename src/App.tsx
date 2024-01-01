@@ -54,8 +54,6 @@ function App() {
 	});
 	const xaxisRef = useRef<fabric.Rect | null>(null);
 	const yaxisRef = useRef<fabric.Rect | null>(null);
-	const xleftRef = useRef<number | null>(null);
-	const xrightRef = useRef<number | null>(null);
 	const theme = useMantineTheme();
 	const { classes } = useStyles();
 	const [showSidebar, setShowSidebar] = useState(true);
@@ -148,58 +146,62 @@ function App() {
 		});
 		// Add a click event listener to the canvas
 		canvasRef.current.on('mouse:down', function (options) {
-			console.log('first', options);
 			if (
 				options?.target?.data?.type === 'xruler' ||
 				options?.target?.data?.type === 'xrulermarker' ||
 				options?.target?.data?.type === 'xrulermarkertext'
 			) {
-				// Clicked on an object
-				console.log('seeee');
-				const zoom = canvasRef.current?.getZoom();
-				const pointer = canvasRef.current?.getPointer(options.e);
-				// add line
-				const line = new fabric.Line([pointer.x, 20 / zoom, pointer.x, canvasRef.current?.height], {
+				const zoom = canvasRef.current?.getZoom() as number;
+				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
+				const canvasHeight = canvasRef.current?.height as number;
+				const line = new fabric.Line([pointer.x, 20 / zoom, pointer.x, canvasHeight], {
 					stroke: '#000',
-					strokeWidth: 4,
+					strokeWidth: 2 / zoom,
 					hoverCursor: 'default',
+					hasControls: false,
 					lockRotation: true,
 					lockMovementY: true,
-					hasControls: false,
+					lockScalingX: true,
+					lockScalingY: true,
+					lockUniScaling: true,
+					lockSkewingX: true,
+					lockSkewingY: true,
+					lockScalingFlip: true,
 					data: {
-						type: 'rulermarker',
+						type: 'xRulerLine',
 						id: generateId(),
 					},
 				});
 				canvasRef.current?.add(line);
-				// active object
-				canvasRef.current?.setActiveObject(line);
 				canvasRef.current?.requestRenderAll();
-				console.log('Clicked on object at x: ' + pointer.x + ', y: ' + pointer.y);
 			} else if (
 				options?.target?.data?.type === 'yruler' ||
 				options?.target?.data?.type === 'yrulermarker' ||
 				options?.target?.data?.type === 'yrulermarkertext'
 			) {
-				// Clicked on an object
-				const pointer = canvasRef.current?.getPointer(options.e);
-				// add line
-				const line = new fabric.Line([0, pointer.y, canvasRef.current?.width, pointer.y], {
+				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
+				const canvasWidth = canvasRef.current?.width as number;
+				const line = new fabric.Line([0, pointer.y, canvasWidth, pointer.y], {
 					stroke: '#000',
-					strokeWidth: 4,
+					strokeWidth: 2 / canvasRef.current?.getZoom(),
 					hoverCursor: 'default',
-					lockRotation: true,
 					lockMovementX: true,
 					hasControls: false,
+					lockRotation: true,
+					lockMovementY: true,
+					lockScalingX: true,
+					lockScalingY: true,
+					lockUniScaling: true,
+					lockSkewingX: true,
+					lockSkewingY: true,
+					lockScalingFlip: true,
 					data: {
-						type: 'rulermarker',
+						type: 'yRulerLine',
 						id: generateId(),
 					},
 				});
 				canvasRef.current?.add(line);
-				canvasRef.current?.setActiveObject(line);
 				canvasRef.current?.requestRenderAll();
-				console.log('Clicked on object at x: ' + pointer.x + ', y: ' + pointer.y);
 			}
 		});
 		return () => {
@@ -781,38 +783,36 @@ function App() {
 			e.preventDefault();
 			if (e.ctrlKey || e.metaKey) {
 				const delta = opt.e.deltaY;
-				let zoom = canvas.getZoom();
+				let zoom = canvasRef?.current?.getZoom() as number;
 				zoom *= 0.99 ** delta;
-
 				const { minZoom, maxZoom } = getMaxMinZoomLevel({
 					width: selectedArtboard?.width || 1,
 					height: selectedArtboard?.height || 1,
 				});
-
 				if (zoom > maxZoom) zoom = maxZoom;
 				if (zoom < minZoom) zoom = minZoom;
 				if (!zoom || isNaN(zoom)) {
 					zoom = minZoom;
 				}
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-				const vpt = canvas.viewportTransform;
-				const pan = canvasRef.current.viewportTransform;
-				xaxisRef.current.set({
-					left: -pan[4] / canvasRef.current?.getZoom(),
-					top: -pan[5] / canvasRef.current?.getZoom(),
-					strokeWidth: 1 / canvasRef.current?.getZoom(),
-					// set to canvas current width
-					width: canvasRef.current?.width / canvasRef.current?.getZoom(),
-					height: 20 / canvasRef.current?.getZoom(),
+				const pan = canvasRef?.current?.viewportTransform as unknown as fabric.IPoint[];
+				const canvasWidth = canvasRef?.current?.width as number;
+				const canvasHeight = canvasRef?.current?.height as number;
+				xaxisRef?.current?.set({
+					left: -pan[4] / zoom,
+					top: -pan[5] / zoom,
+					strokeWidth: 1 / zoom,
+					width: canvasWidth / zoom,
+					height: 20 / zoom,
 				});
-				yaxisRef.current.set({
-					left: -pan[4] / canvasRef.current?.getZoom(),
-					top: -pan[5] / canvasRef.current?.getZoom(),
-					strokeWidth: 1 / canvasRef.current?.getZoom(),
-					// set to canvas current width
-					width: 20 / canvasRef.current?.getZoom(),
-					height: canvasRef.current?.height / canvasRef.current?.getZoom(),
+				yaxisRef?.current?.set({
+					left: -pan[4] / zoom,
+					top: -pan[5] / zoom,
+					strokeWidth: 1 / zoom,
+					width: 20 / zoom,
+					height: canvasHeight / zoom,
 				});
+				rulerMarkerAdjust(canvasRef);
 
 				handleZoomRuler(canvasRef, zoom, pan, canvas);
 				xaxisRef.current?.setCoords();
@@ -824,36 +824,18 @@ function App() {
 				if (!vpt) {
 					return;
 				}
-				if (!xleftRef.current) {
-					xleftRef.current = vpt[4];
-				}
-				if (!xrightRef.current) {
-					xrightRef.current = vpt[5];
-				}
-				xleftRef.current += e.deltaX;
-				xrightRef.current += e.deltaY;
-				const pan = canvasRef.current.viewportTransform;
+				const pan = canvasRef?.current?.viewportTransform;
 
-				// Update the position of the xaxisRef box
-				// xaxisRef.current.set({
-				// 	left: -pan[4] / canvasRef.current?.getZoom(),
-				// 	top: -pan[5] / canvasRef.current?.getZoom(),
-				// });
-				// xaxisRef.current?.set({
-				// 	left: xleftRef.current / canvasRef.current?.getZoom(),
-				// 	top: xrightRef.current,
-				// });
 				vpt[4] -= e.deltaX;
 				vpt[5] -= e.deltaY;
-				xaxisRef.current.set({
+				xaxisRef?.current?.set({
 					left: -pan[4] / canvasRef.current?.getZoom(),
 					top: -pan[5] / canvasRef.current?.getZoom(),
-					// set to canvas current width
 					width: canvasRef.current?.width / canvasRef.current?.getZoom(),
 					height: 20 / canvasRef.current?.getZoom(),
 				});
 				xaxisRef.current?.setCoords();
-				yaxisRef.current.set({
+				yaxisRef?.current?.set({
 					left: -pan[4] / canvasRef.current?.getZoom(),
 					top: -pan[5] / canvasRef.current?.getZoom(),
 					width: 20 / canvasRef.current?.getZoom(),
@@ -886,6 +868,7 @@ function App() {
 					const visibleLeft = -vpt[4] / vpt[0] + scrollLeft / vpt[0];
 					return { top: visibleTop, left: visibleLeft };
 				};
+				rulerMarkerAdjust(canvasRef);
 				const { left } = getVisibleTopLeft(canvasRef);
 				// find value nearest to 10
 				const nearest = Math.round(left / 50) * 50;
@@ -1494,4 +1477,31 @@ function renderAxis(
 	canvasRef.current?.add(xaxis, yaxis);
 	handleZoomRuler(canvasRef, 1, [0, 0, 0, 0, 0, 0], canvasRef.current as fabric.Canvas);
 	canvasRef.current?.requestRenderAll();
+}
+
+function rulerMarkerAdjust(canvasRef) {
+	const allObjects = canvasRef.current.getObjects();
+
+	allObjects
+		.filter(x => x.data.type === 'xRulerLine')
+		.forEach(x => {
+			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
+			x?.set({
+				strokeWidth: 2 / canvasRef.current?.getZoom(),
+				top: -pan[5] / canvasRef.current?.getZoom(),
+				height: canvasRef.current?.height / canvasRef.current?.getZoom(),
+			});
+		});
+
+	allObjects
+		.filter(x => x.data.type === 'yRulerLine')
+		.forEach(x => {
+			console.log('y', x);
+			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
+			x?.set({
+				strokeWidth: 2 / canvasRef.current?.getZoom(),
+				left: -pan[4] / canvasRef.current?.getZoom(),
+				width: canvasRef.current?.width / canvasRef.current?.getZoom(),
+			});
+		});
 }
