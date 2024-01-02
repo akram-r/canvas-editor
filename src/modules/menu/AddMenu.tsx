@@ -146,6 +146,11 @@ export default function AddMenu({ artboardRef, selectedArtboard, canvasRef }: Ad
 								fill: 'blue', // Set the fill color
 								stroke: 'black', // Set the stroke color
 								strokeWidth: 2, // Set the stroke width
+								data: {
+									type: 'shapes',
+									displayText: 'Shape',
+									id: generateId(),
+								},
 							});
 							// double click on the path to enter editing mode
 							fabricPath.on('mousedblclick', function (options) {
