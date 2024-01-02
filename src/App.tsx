@@ -23,28 +23,40 @@ import { fabric } from 'fabric';
 import FontFaceObserver from 'fontfaceobserver';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import AddMenu from './modules/menu/AddMenu';
-import LayerList from './modules/layers/List';
-import MiscMenu from './modules/menu/MiscMenu';
 import Panel from './components/Panel';
-import SettingsMenu from './modules/settings';
-import ZoomMenu from './modules/zoom';
+import { FABRIC_JSON_ALLOWED_KEYS } from './constants';
 import { useQueryParam } from './hooks';
 import { appStart, setArtboards, setSelectedArtboard, updateActiveArtboardLayers } from './modules/app/actions';
 import { redo, undo } from './modules/history/actions';
+import { addVideoToCanvas } from './modules/image/helpers';
+import LayerList from './modules/layers/List';
+import AddMenu from './modules/menu/AddMenu';
+import MiscMenu from './modules/menu/MiscMenu';
+import SettingsMenu from './modules/settings';
+import ZoomMenu from './modules/zoom';
 import store from './store';
 import { RootState } from './store/rootReducer';
-import { Artboard, FixedArray, colorSpaceType, guidesRefType, snappingObjectType } from './types';
-import { generateId } from './utils';
 import { SmartObject } from './modules/reflection/helpers';
-import { useModalStyles } from './styles/modal';
 import SectionTitle from './components/SectionTitle';
-import { FABRIC_JSON_ALLOWED_KEYS } from './constants';
 import { createSnappingLines, snapToObject } from './modules/snapping';
 import { RULER_ELEMENTS, handleZoomRuler, renderAxis, rulerMarkerAdjust } from './modules/ruler';
 import { filterSaveExcludes, filterSnappingExcludes } from './modules/utils/fabricObjectUtils';
+import { useModalStyles } from './styles/modal';
+import { Artboard, FixedArray, colorSpaceType, guidesRefType, snappingObjectType } from './types';
+import { generateId, getMultiplierFor4K } from './utils';
 
 store.dispatch(appStart());
+
+(window as any).switchVideo = () => {
+	const isVideoEnabled = JSON.parse(localStorage.getItem('video') || 'false');
+	localStorage.setItem('video', JSON.stringify(!isVideoEnabled));
+	return 'Video is ' + (isVideoEnabled ? 'disabled' : 'enabled');
+};
+
+(window as any).hardReset = () => {
+	localStorage.setItem('artboards', JSON.stringify([]));
+	window.location.reload();
+};
 
 function App() {
 	const dispatch = useDispatch();
@@ -607,18 +619,6 @@ function App() {
 		canvas.renderAll();
 	};
 
-	const getMultiplierFor4K = (width?: number, height?: number): number => {
-		// Assuming the canvas is not already 4K, calculate the multiplier needed
-		// to scale the current canvas size up to 4K resolution
-		const maxWidth = 3840; // for UHD 4K width
-		const maxHeight = 2160; // for UHD 4K height
-		const widthMultiplier = maxWidth / (width || 1);
-		const heightMultiplier = maxHeight / (height || 1);
-
-		// Use the smaller multiplier to ensure the entire canvas fits into the 4K resolution
-		return Math.min(widthMultiplier, heightMultiplier);
-	};
-
 	const saveArtboardChanges = () => {
 		if (!selectedArtboard) {
 			return;
@@ -743,6 +743,44 @@ function App() {
 		}
 	};
 
+	const deleteElement = () => {
+		const canvas = canvasRef.current;
+		if (!canvas) {
+			return;
+		}
+
+		const activeObjects = canvas.getActiveObjects();
+		if (!activeObjects.length) {
+			return;
+		}
+
+		activeObjects.forEach(object => {
+			canvas.remove(object);
+		});
+		canvas.renderAll();
+		dispatch(updateActiveArtboardLayers(canvas.getObjects()));
+		saveArtboardChanges();
+	};
+
+	const duplicateElement = () => {
+		const canvas = canvasRef.current;
+		if (!canvas) {
+			return;
+		}
+
+		const activeObjects = canvas.getActiveObjects();
+		if (activeObjects.length > 1) {
+			return;
+		}
+
+		activeObjects[0].clone((cloned: fabric.Object) => {
+			canvas.add(cloned);
+			canvas.renderAll();
+			dispatch(updateActiveArtboardLayers(canvas.getObjects()));
+			saveArtboardChanges();
+		});
+	};
+
 	// Handle the undo and redo actions to update artboards
 	useEffect(() => {
 		if (!selectedArtboard) {
@@ -764,7 +802,7 @@ function App() {
 		const json = currentArtboardState.state;
 		canvasRef.current?.loadFromJSON(json, async () => {
 			console.log('Loaded from JSON');
-			const artboard = canvasRef.current?.getObjects().find(item => item.data?.type === 'artboard');
+			const artboard = canvas.getObjects().find(item => item.data?.type === 'artboard');
 			if (artboard) {
 				artboardRef.current = artboard as fabric.Rect;
 			}
@@ -772,9 +810,9 @@ function App() {
 			// zoomToFit();
 
 			// create a style sheet
-			const artboardTexts = canvasRef.current?.getObjects().filter(item => item.type === 'textbox');
+			const artboardTexts = canvas.getObjects().filter(item => item.type === 'textbox');
 			// take all texts and then loop over. Read data property inside and get font from it
-			const fontPromises = artboardTexts?.map(item => {
+			const fontPromises = artboardTexts?.map((item: any) => {
 				const textItem = item as fabric.Text;
 				if (
 					textItem.data &&
@@ -821,7 +859,7 @@ function App() {
 			}
 
 			// Attach the reference for reflection object back to the parent object
-			(canvasRef.current?.getObjects() as SmartObject[]).forEach((obj: SmartObject) => {
+			(canvas.getObjects() as SmartObject[]).forEach((obj: SmartObject) => {
 				const reflection = canvasRef.current
 					?.getObjects()
 					.find(item => item.data?.type === 'reflection' && item.data.parent === obj.data?.id);
@@ -839,6 +877,16 @@ function App() {
 			guidesRef.current = createSnappingLines(canvasRef);
 			renderAxis(canvasRef, xaxisRef, yaxisRef, blockRef, colorScheme);
 			// renderGrid(canvasRef, 40, 40);
+
+			// Get the src of the video element and add it to the canvas
+			const videoElements = canvasRef.current?.getObjects().filter(item => item.data?.type === 'video');
+			if (videoElements?.length) {
+				for (let i = 0; i < videoElements.length; i++) {
+					await addVideoToCanvas(videoElements[i].data.src, canvasRef.current!, {
+						artboardRef,
+					});
+				}
+			}
 			canvas.requestRenderAll();
 		});
 	}, [selectedArtboard, artboards]);
@@ -1097,6 +1145,20 @@ function App() {
 				ungroup();
 			},
 		],
+		[
+			'backspace',
+			(event: KeyboardEvent) => {
+				event.preventDefault();
+				deleteElement();
+			},
+		],
+		[
+			'mod+d',
+			(event: KeyboardEvent) => {
+				event.preventDefault();
+				duplicateElement();
+			},
+		],
 	]);
 
 	return (
@@ -1218,6 +1280,7 @@ function App() {
 								artboardRef={artboardRef}
 								canvas={canvasRef.current}
 								currentSelectedElements={currentSelectedElements}
+								saveArtboardChanges={saveArtboardChanges}
 							/>
 						)}
 					</Box>
@@ -1339,6 +1402,8 @@ const useStyles = createStyles(theme => ({
 		width: 300,
 		height: '100%',
 		padding: '1rem',
+		overflowY: 'auto',
+		paddingBottom: '2rem',
 	},
 	center: {
 		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[5] : theme.colors.gray[2],
@@ -1365,9 +1430,7 @@ export default App;
 function removeMovingMarker(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
 	canvasRef.current
 		?.getObjects()
-		.filter(item =>
-			[RULER_ELEMENTS.X_MOVE_MARKER, RULER_ELEMENTS.Y_MOVE_MARKER].includes(item.data?.type as RULER_ELEMENTS),
-		)
+		.filter(item => [RULER_ELEMENTS.X_MOVE_MARKER, RULER_ELEMENTS.Y_MOVE_MARKER].includes(item.data?.type))
 		.forEach(item => {
 			canvasRef.current?.remove(item);
 		});
