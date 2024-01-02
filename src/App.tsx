@@ -39,7 +39,18 @@ import { RootState } from './store/rootReducer';
 import { SmartObject } from './modules/reflection/helpers';
 import SectionTitle from './components/SectionTitle';
 import { createSnappingLines, snapToObject } from './modules/snapping';
-import { RULER_ELEMENTS, handleZoomRuler, renderAxis, rulerMarkerAdjust } from './modules/ruler';
+import {
+	RULER_ELEMENTS,
+	findXAxis,
+	findYAxis,
+	handleZoomRuler,
+	initializeRuler,
+	removeMovingMarker,
+	removeRuler,
+	renderAxis,
+	rulerBackgroundAdjust,
+	rulerMarkerAdjust,
+} from './modules/ruler';
 import { filterSaveExcludes, filterSnappingExcludes } from './modules/utils/fabricObjectUtils';
 import { useModalStyles } from './styles/modal';
 import { Artboard, FixedArray, colorSpaceType, guidesRefType, snappingObjectType } from './types';
@@ -66,10 +77,9 @@ function App() {
 		key: 'snapDistance',
 		defaultValue: '2',
 	});
-	const xaxisRef = useRef<fabric.Rect | null>(null);
-	const yaxisRef = useRef<fabric.Rect | null>(null);
-	const blockRef = useRef<fabric.Rect | null>(null);
+	const [showRuler, setShowRuler] = useState(true);
 	const theme = useMantineTheme();
+	const colorSchemeRef = useRef(theme.colorScheme);
 	const { classes } = useStyles();
 	const [showSidebar, setShowSidebar] = useState(true);
 	const [colorSpace] = useQueryParam('colorSpace', 'srgb');
@@ -121,7 +131,17 @@ function App() {
 	});
 	const undoable = useSelector((state: RootState) => state.history.undoable);
 	const redoable = useSelector((state: RootState) => state.history.redoable);
-	const colorScheme = theme.colorScheme;
+
+	useEffect(() => {
+		console.log('color', canvasRef?.current);
+		colorSchemeRef.current = theme.colorScheme;
+		if (canvasRef.current) {
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+			rulerMarkerAdjust(canvasRef, colorSchemeRef.current);
+		}
+	}, [theme.colorScheme, canvasRef.current]);
+	const colorScheme = colorSchemeRef.current;
 	useEffect(() => {
 		canvasRef.current = new fabric.Canvas('canvas', {
 			// create a canvas with clientWidth and clientHeight
@@ -141,9 +161,7 @@ function App() {
 				.forEach(item => {
 					item.set({ stroke: '#000', fill: '#000' });
 				});
-
 			removeMovingMarker(canvasRef);
-
 			setCurrentSelectedElements(arr => {
 				if (!arr) {
 					return null;
@@ -333,9 +351,11 @@ function App() {
 		// Place the canvas in the center of the screen
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
-		const viewportTransform = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
-		renderAxis(canvasRef, xaxisRef, yaxisRef, blockRef, colorScheme);
-		handleZoomRuler(canvasRef, 1, viewportTransform, canvasRef.current as fabric.Canvas, blockRef);
+		if (showRuler) {
+			handleZoomRuler(canvasRef, colorScheme);
+			renderAxis(canvasRef, colorScheme);
+			rulerBackgroundAdjust(canvasRef, colorScheme);
+		}
 	};
 
 	const centerBoardToCanvas = (artboardRef: React.MutableRefObject<fabric.Rect | null>) => {
@@ -640,33 +660,10 @@ function App() {
 		dispatch(setArtboards(updatedArtboards));
 	};
 
-	const getMaxMinZoomLevel = (dimensions: { width: number; height: number }) => {
-		const { width, height } = dimensions;
-
-		if (width >= 10000 || height >= 10000) {
-			return {
-				minZoom: 0.01,
-				maxZoom: 5,
-			};
-		}
-
-		if (width >= 5000 || height >= 5000) {
-			return {
-				minZoom: 0.025,
-				maxZoom: 10,
-			};
-		}
-
-		if (width >= 2000 || height >= 2000) {
-			return {
-				minZoom: 0.1,
-				maxZoom: 20,
-			};
-		}
-
+	const getMaxMinZoomLevel = () => {
 		return {
-			minZoom: 0.1,
-			maxZoom: 10,
+			minZoom: 0.02,
+			maxZoom: 20,
 		};
 	};
 
@@ -676,10 +673,7 @@ function App() {
 			return;
 		}
 
-		const { minZoom, maxZoom } = getMaxMinZoomLevel({
-			width: selectedArtboard?.width || 1,
-			height: selectedArtboard?.height || 1,
-		});
+		const { minZoom, maxZoom } = getMaxMinZoomLevel();
 
 		if (zoom > maxZoom) zoom = maxZoom;
 		if (zoom < minZoom) zoom = minZoom;
@@ -724,7 +718,13 @@ function App() {
 		// Zoom to the center of the canvas
 		// zoomFromCenter(zoom);
 		centerBoardToCanvas(artboardRef);
+
 		setZoomLevel(canvasRef.current?.getZoom() || zoom);
+		if (showRuler) {
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			renderAxis(canvasRef, colorSchemeRef.current);
+			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+		}
 	};
 
 	const zoomIn = () => {
@@ -807,8 +807,8 @@ function App() {
 			if (artboard) {
 				artboardRef.current = artboard as fabric.Rect;
 			}
-			//TODO: comeback at this
-			// zoomToFit();
+
+			zoomToFit();
 
 			// create a style sheet
 			const artboardTexts = canvas.getObjects().filter(item => item.type === 'textbox');
@@ -876,9 +876,10 @@ function App() {
 			});
 
 			guidesRef.current = createSnappingLines(canvasRef);
-			renderAxis(canvasRef, xaxisRef, yaxisRef, blockRef, colorScheme);
-			// renderGrid(canvasRef, 40, 40);
 
+			renderAxis(canvasRef, colorSchemeRef.current);
+			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
 			// Get the src of the video element and add it to the canvas
 			const videoElements = canvasRef.current?.getObjects().filter(item => item.data?.type === 'video');
 			if (videoElements?.length) {
@@ -893,15 +894,26 @@ function App() {
 	}, [selectedArtboard, artboards]);
 
 	useEffect(() => {
-		xaxisRef.current?.set({
+		const xaxis = findXAxis(canvasRef);
+		const yaxis = findYAxis(canvasRef);
+		xaxis?.set({
 			fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
 			stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
 		});
-		yaxisRef.current?.set({
+		yaxis?.set({
 			fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
 			stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
 		});
 	}, [colorScheme, selectedArtboard, artboards]);
+
+	useEffect(() => {
+		console.log('show', showRuler);
+		if (showRuler) {
+			initializeRuler(canvasRef);
+		} else {
+			removeRuler(canvasRef);
+		}
+	}, [showRuler]);
 
 	// Handle dragging of canvas with mouse down and alt key pressed
 	useEffect(() => {
@@ -914,75 +926,32 @@ function App() {
 			// Handle panning based on deltaX and deltaY but prevent zooming
 			const e = opt.e;
 			e.preventDefault();
+
 			if (e.ctrlKey || e.metaKey) {
 				const delta = opt.e.deltaY;
 				let zoom = canvasRef?.current?.getZoom() as number;
 				zoom *= 0.99 ** delta;
-				const { minZoom, maxZoom } = getMaxMinZoomLevel({
-					width: selectedArtboard?.width || 1,
-					height: selectedArtboard?.height || 1,
-				});
+				const { minZoom, maxZoom } = getMaxMinZoomLevel();
 				if (zoom > maxZoom) zoom = maxZoom;
 				if (zoom < minZoom) zoom = minZoom;
 				if (!zoom || isNaN(zoom)) {
 					zoom = minZoom;
 				}
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-				const pan = canvasRef?.current?.viewportTransform as FixedArray<number, 6>;
-				const canvasWidth = canvasRef?.current?.width as number;
-				const canvasHeight = canvasRef?.current?.height as number;
-				xaxisRef?.current?.set({
-					left: -pan[4] / zoom,
-					top: -pan[5] / zoom,
-					strokeWidth: 1 / zoom,
-					width: canvasWidth / zoom,
-					height: 20 / zoom,
-				});
-				yaxisRef?.current?.set({
-					left: -pan[4] / zoom,
-					top: -pan[5] / zoom,
-					strokeWidth: 1 / zoom,
-					width: 20 / zoom,
-					height: canvasHeight / zoom,
-				});
-				rulerMarkerAdjust(canvasRef);
-				xaxisRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) + 1);
-				yaxisRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) + 2);
-				blockRef.current?.moveTo((canvasRef.current?.getObjects()?.length as number) + 3);
-
-				handleZoomRuler(canvasRef, zoom, pan, canvas, blockRef);
-				xaxisRef.current?.setCoords();
-				yaxisRef.current?.setCoords();
 				setZoomLevel(zoom);
 				canvas.renderAll();
+				if (showRuler) {
+					rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+					rulerMarkerAdjust(canvasRef, colorSchemeRef.current);
+					handleZoomRuler(canvasRef, colorSchemeRef.current);
+				}
 			} else {
 				const pan = canvas.viewportTransform as FixedArray<number, 6> | undefined;
 				if (!pan) {
 					return;
 				}
-				xaxisRef.current?.moveTo((canvasRef.current?.getObjects().length as number) - 1);
-				yaxisRef.current?.moveTo((canvasRef.current?.getObjects().length as number) - 1);
-				blockRef.current?.moveTo((canvasRef.current?.getObjects().length as number) - 1);
-
 				pan[4] -= e.deltaX;
 				pan[5] -= e.deltaY;
-				const zoom = canvasRef?.current?.getZoom() as number;
-				const canvasWidth = canvasRef?.current?.width as number;
-				const canvasHeight = canvasRef?.current?.height as number;
-				xaxisRef?.current?.set({
-					left: -pan[4] / zoom,
-					top: -pan[5] / zoom,
-					width: canvasWidth / zoom,
-					height: 20 / zoom,
-				});
-				xaxisRef.current?.setCoords();
-				yaxisRef?.current?.set({
-					left: -pan[4] / zoom,
-					top: -pan[5] / zoom,
-					width: 20 / zoom,
-					height: canvasHeight / zoom,
-				});
-				yaxisRef.current?.setCoords();
 				canvasRef.current
 					?.getObjects()
 					.filter(
@@ -995,20 +964,20 @@ function App() {
 					.forEach(item => {
 						canvasRef.current?.remove(item);
 					});
-				rulerMarkerAdjust(canvasRef);
-				handleZoomRuler(canvasRef, zoom, pan, canvas, blockRef);
-				setCanvasScrollPoints(pan[4] + pan[5]);
+				if (showRuler) {
+					rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+					rulerMarkerAdjust(canvasRef, colorSchemeRef.current);
+					handleZoomRuler(canvasRef, colorSchemeRef.current);
+					setCanvasScrollPoints(pan[4] + pan[5]);
+				}
 				canvas.requestRenderAll();
 			}
 		};
-
 		canvas.on('mouse:wheel', handlePan);
-
 		return () => {
 			canvas.off('mouse:wheel', handlePan);
 		};
 	}, [selectedArtboard?.height, selectedArtboard?.width]);
-
 	// Update canvas size when viewport size changes
 	useEffect(() => {
 		const handleResize = () => {
@@ -1016,9 +985,9 @@ function App() {
 				width: window.innerWidth,
 				height: window.innerHeight - 60,
 			});
-			renderAxis(canvasRef, xaxisRef, yaxisRef, blockRef, colorScheme);
-			handleZoomRuler(canvasRef, zoomLevel, [0, 0, 0, 0, 0, 0], canvasRef.current as fabric.Canvas, blockRef);
-			rulerMarkerAdjust(canvasRef);
+			// renderAxis(canvasRef);
+			// handleZoomRuler(canvasRef);
+			// rulerMarkerAdjust(canvasRef);
 		};
 
 		window.addEventListener('resize', handleResize);
@@ -1187,6 +1156,7 @@ function App() {
 						setAutoSaveChanges={setAutoSaveChanges}
 						snapDistance={snapDistance}
 						setSnapDistance={setSnapDistance}
+						setShowRuler={setShowRuler}
 					/>
 					<Tooltip label="Save" openDelay={500}>
 						<ActionIcon onClick={saveArtboardChanges} size={20}>
@@ -1357,6 +1327,7 @@ function App() {
 		</Box>
 	);
 }
+
 const useStyles = createStyles(theme => ({
 	root: {
 		backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[2],
@@ -1428,11 +1399,3 @@ const useStyles = createStyles(theme => ({
 }));
 
 export default App;
-function removeMovingMarker(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
-	canvasRef.current
-		?.getObjects()
-		.filter(item => [RULER_ELEMENTS.X_MOVE_MARKER, RULER_ELEMENTS.Y_MOVE_MARKER].includes(item.data?.type))
-		.forEach(item => {
-			canvasRef.current?.remove(item);
-		});
-}

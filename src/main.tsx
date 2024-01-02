@@ -34,23 +34,21 @@ export const MainWrapper = () => {
 		setColorScheme(value || (colorScheme === 'dark' ? 'light' : 'dark'));
 
 	return (
-		<React.StrictMode>
-			<ColorSchemeProvider colorScheme={colorScheme} toggleColorScheme={toggleColorScheme}>
-				<MantineProvider
-					theme={{
-						primaryColor: 'violet',
-						colorScheme,
-					}}
-					withGlobalStyles
-					withNormalizeCSS
-				>
-					<Provider store={store}>
-						<RouterProvider router={router} />
-						<Notifications position="bottom-center" />
-					</Provider>
-				</MantineProvider>
-			</ColorSchemeProvider>
-		</React.StrictMode>
+		<ColorSchemeProvider colorScheme={colorScheme} toggleColorScheme={toggleColorScheme}>
+			<MantineProvider
+				theme={{
+					primaryColor: 'violet',
+					colorScheme,
+				}}
+				withGlobalStyles
+				withNormalizeCSS
+			>
+				<Provider store={store}>
+					<RouterProvider router={router} />
+					<Notifications position="bottom-center" />
+				</Provider>
+			</MantineProvider>
+		</ColorSchemeProvider>
 	);
 };
 

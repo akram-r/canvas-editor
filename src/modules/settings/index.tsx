@@ -23,12 +23,14 @@ interface Props {
 	setAutoSaveChanges: React.Dispatch<React.SetStateAction<boolean>>;
 	snapDistance: string;
 	setSnapDistance: React.Dispatch<React.SetStateAction<string>>;
+	setShowRuler: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const SettingsMenu: React.FC<Props> = ({
 	recreateCanvas,
 	canvasRef,
 	setShowSidebar,
+	setShowRuler,
 	autosaveChanges,
 	setAutoSaveChanges,
 	snapDistance,
@@ -48,7 +50,9 @@ const SettingsMenu: React.FC<Props> = ({
 			autoClose: 1000,
 		});
 	};
-
+	const toggleRuler = () => {
+		setShowRuler(c => !c);
+	};
 	const toggleUI = () => {
 		setShowSidebar(c => !c);
 		canvasRef.current?.setDimensions({
@@ -65,6 +69,7 @@ const SettingsMenu: React.FC<Props> = ({
 				debug();
 			},
 		],
+		['alt+R', toggleRuler],
 		['mod+.', toggleUI],
 		[
 			'alt+L',
@@ -134,6 +139,7 @@ const SettingsMenu: React.FC<Props> = ({
 						color="yellow"
 						onClick={() => {
 							debug();
+							console.log('objects', canvasRef.current?.getObjects());
 						}}
 						rightSection={<Text size={11}>{getAltKey()} + Shift + D</Text>}
 					>
