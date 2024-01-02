@@ -4,6 +4,7 @@ import AlignmentPanel from '../modules/position/Alignment';
 import TextPanel from '../modules/text/Panel';
 import ClipMask from '../modules/clipmask';
 import Position from '../modules/position';
+import { RULER_ELEMENTS } from '../modules/ruler';
 
 type PanelProps = {
 	canvas: fabric.Canvas;
@@ -26,8 +27,16 @@ const Panel = ({ canvas, currentSelectedElements, artboardRef }: PanelProps) => 
 						currentSelectedElements={currentSelectedElements}
 					/>
 					<Divider />
-					<Position canvas={canvas} currentSelectedElements={currentSelectedElements} />
-					<Divider />
+
+					{![RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(
+						currentSelectedElements?.[0]?.data?.type,
+					) ? (
+						<>
+							<Position canvas={canvas} currentSelectedElements={currentSelectedElements} />
+							<Divider />
+						</>
+					) : null}
+
 					{currentSelectedElements?.[0]?.type === 'textbox' && (
 						<TextPanel
 							artboardRef={artboardRef}

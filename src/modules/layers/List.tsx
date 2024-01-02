@@ -18,7 +18,7 @@ import useTreeOpenHandler from './Folders/useTreeOpenHandler';
 import { convertFabricObjectsToLayers, convertLayersToFabricObjects } from './helpers';
 import { fabric } from 'fabric';
 import SectionTitle from '../../components/SectionTitle';
-import { filterSnappingExcludes } from '../snapping';
+import { filterSaveExcludes } from '../utils/fabricObjectUtils';
 
 const reorderArray = (array: NodeModel[], sourceIndex: number, targetIndex: number) => {
 	const newArray = [...array];
@@ -114,7 +114,7 @@ export default function LayerList({ canvas }: LayerListProp) {
 
 	useEffect(() => {
 		if (layers.length === 0) return;
-		const newTreeData = convertFabricObjectsToLayers(filterSnappingExcludes(layers)) as NodeModel[];
+		const newTreeData = convertFabricObjectsToLayers(filterSaveExcludes(layers)) as NodeModel[];
 		setTreeData(prev => {
 			if (JSON.stringify(prev) === JSON.stringify(newTreeData)) return prev;
 			return newTreeData;

@@ -189,8 +189,3 @@ export function createSnappingLines(canvasRef: React.MutableRefObject<fabric.Can
 	);
 	return guidesRef;
 }
-
-export const filterSnappingExcludes = (arr: fabric.Object[] | undefined) => {
-	if (!arr) return [];
-	return arr.filter(obj => !obj?.data?.isSnappingLine && !obj?.data?.ignoreSnapping);
-};

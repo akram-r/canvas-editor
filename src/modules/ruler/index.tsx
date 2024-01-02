@@ -1,6 +1,7 @@
 import { fabric } from 'fabric';
 import { generateId } from '../../utils';
 import { getCanvasVisibleTopLeft } from '../utils/canvasUtils';
+import { FixedArray } from '../../types';
 
 export const RULER_ELEMENTS = {
 	X_RULER_BACKGROUND: 'X_RULER_BACKGROUND',
@@ -11,6 +12,8 @@ export const RULER_ELEMENTS = {
 	Y_RULER_MARKER: 'Y_RULER_MARKER',
 	X_RULER_MARKER_TEXT: 'X_RULER_MARKER_TEXT',
 	Y_RULER_MARKER_TEXT: 'Y_RULER_MARKER_TEXT',
+	X_MOVE_MARKER: 'X_MOVE_MARKER',
+	Y_MOVE_MARKER: 'Y_MOVE_MARKER',
 } as const;
 
 export function getCanvasZoomScale(zoom: number): number {
@@ -35,18 +38,21 @@ const getAdjustedMarkerTextPosition = (num: number) => {
 export function handleZoomRuler(
 	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
 	zoom: number,
-	pan: number[],
+	pan: FixedArray<number, 6>,
 	canvas: fabric.Canvas,
 	blockRef: React.MutableRefObject<fabric.Rect | null>,
 ) {
 	canvasRef.current
 		?.getObjects()
-		.filter(
-			item =>
-				item.data?.type === RULER_ELEMENTS.X_RULER_MARKER ||
-				item.data?.type === RULER_ELEMENTS.X_RULER_MARKER_TEXT ||
-				item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER ||
-				item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
+		.filter(item =>
+			[
+				RULER_ELEMENTS.X_RULER_MARKER,
+				RULER_ELEMENTS.X_RULER_MARKER_TEXT,
+				RULER_ELEMENTS.Y_RULER_MARKER,
+				RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
+				RULER_ELEMENTS.X_MOVE_MARKER,
+				RULER_ELEMENTS.Y_MOVE_MARKER,
+			].includes(item.data?.type),
 		)
 		.forEach(item => {
 			canvasRef.current?.remove(item);
@@ -211,13 +217,14 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 	allObjects
 		.filter(x => x.data.type === RULER_ELEMENTS.X_RULER_LINE)
 		.forEach(x => {
-			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
+			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 			x?.set({
-				padding: 15 / zoom,
 				strokeWidth: 2 / zoom,
 				top: (-pan[5] + 20) / zoom,
 				height: canvasHeight / zoom,
+				padding: 10 / zoom,
 			});
+			x.setCoords();
 		});
 
 	allObjects
@@ -225,10 +232,16 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 		.forEach(x => {
 			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 			x?.set({
-				padding: 15 / zoom,
 				strokeWidth: 2 / zoom,
 				left: (-pan[4] + 20) / zoom,
 				width: canvasWidth / zoom,
+				padding: 10 / zoom,
 			});
+			x.setCoords();
 		});
 }
+
+export const filterRulerObjects = (arr: fabric.Object[] | undefined) => {
+	if (!arr) return [];
+	return arr.filter(obj => !Object.values(RULER_ELEMENTS).includes(obj?.data?.type));
+};

@@ -34,14 +34,15 @@ import { appStart, setArtboards, setSelectedArtboard, updateActiveArtboardLayers
 import { redo, undo } from './modules/history/actions';
 import store from './store';
 import { RootState } from './store/rootReducer';
-import { Artboard, colorSpaceType, guidesRefType, snappingObjectType } from './types';
+import { Artboard, FixedArray, colorSpaceType, guidesRefType, snappingObjectType } from './types';
 import { generateId } from './utils';
 import { SmartObject } from './modules/reflection/helpers';
 import { useModalStyles } from './styles/modal';
 import SectionTitle from './components/SectionTitle';
 import { FABRIC_JSON_ALLOWED_KEYS } from './constants';
-import { createSnappingLines, filterSnappingExcludes, snapToObject } from './modules/snapping';
+import { createSnappingLines, snapToObject } from './modules/snapping';
 import { RULER_ELEMENTS, handleZoomRuler, renderAxis, rulerMarkerAdjust } from './modules/ruler';
+import { filterSaveExcludes, filterSnappingExcludes } from './modules/utils/fabricObjectUtils';
 
 store.dispatch(appStart());
 
@@ -119,9 +120,18 @@ function App() {
 		});
 		// Handle element selection TODO: add more element type and handle it
 		canvasRef.current?.on('selection:created', function (event) {
+			console.log('selection created', event);
 			setCurrentSelectedElements(event.selected as fabric.Object[]);
 		});
 		canvasRef.current?.on('selection:updated', function (event) {
+			event?.deselected
+				?.filter(item => [RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(item.data?.type))
+				.forEach(item => {
+					item.set({ stroke: '#000', fill: '#000' });
+				});
+
+			removeMovingMarker(canvasRef);
+
 			setCurrentSelectedElements(arr => {
 				if (!arr) {
 					return null;
@@ -143,7 +153,15 @@ function App() {
 				// Else if the element is in the desected array, remove it
 			});
 		});
-		canvasRef.current?.on('selection:cleared', function () {
+		canvasRef.current?.on('selection:cleared', function (e) {
+			console.log('e', e);
+			removeMovingMarker(canvasRef);
+			e?.deselected
+				?.filter(item => [RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(item.data?.type))
+				.forEach(item => {
+					console.log('seeee');
+					item.set({ stroke: '#000', fill: '#000' });
+				});
 			setCurrentSelectedElements(null);
 		});
 		// Add a click event listener to the canvas
@@ -165,6 +183,7 @@ function App() {
 					hasControls: false,
 					hasBorders: false,
 					lockRotation: true,
+
 					lockMovementY: true,
 					lockScalingX: true,
 					lockScalingY: true,
@@ -214,8 +233,13 @@ function App() {
 				line.set({ width: canvasWidth });
 				canvasRef.current?.add(line);
 				canvasRef.current?.requestRenderAll();
+			} else if (
+				[RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(options?.target?.data?.type)
+			) {
+				options.target?.set({ fill: 'red', stroke: 'red' });
 			}
 		});
+
 		return () => {
 			canvasRef.current?.dispose();
 		};
@@ -223,6 +247,39 @@ function App() {
 
 	const onMoveHandler = (options: fabric.IEvent) => {
 		const target = options.target as fabric.Object;
+		if ([RULER_ELEMENTS.X_RULER_LINE].includes(target.data?.type)) {
+			removeMovingMarker(canvasRef);
+			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
+			const zoom = canvasRef.current?.getZoom() as number;
+			canvasRef.current?.add(
+				new fabric.Text(`${Math.round(target.left as number)}`, {
+					left: (target.left as number) + 5 / zoom,
+					top: (-pan[5] + 20) / zoom,
+					fill: 'red',
+					fontFamily: 'Monospace',
+					fontSize: 12 / zoom,
+					data: { type: RULER_ELEMENTS.X_MOVE_MARKER },
+				}),
+			);
+			return;
+		} else if ([RULER_ELEMENTS.Y_RULER_LINE].includes(target.data?.type)) {
+			removeMovingMarker(canvasRef);
+			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
+			const zoom = canvasRef.current?.getZoom() as number;
+			canvasRef.current?.add(
+				new fabric.Text(`${Math.round(target.top as number)}`, {
+					left: (-pan[4] + 20) / zoom,
+					top: (target.top as number) - 5 / zoom,
+					fill: 'red',
+					fontFamily: 'Monospace',
+					angle: 270,
+					fontSize: 12 / zoom,
+					data: { type: RULER_ELEMENTS.Y_MOVE_MARKER },
+				}),
+			);
+			return;
+		}
+
 		snapToObject(
 			target as snappingObjectType,
 			filterSnappingExcludes(canvasRef.current?.getObjects()) as snappingObjectType[],
@@ -264,7 +321,7 @@ function App() {
 		// Place the canvas in the center of the screen
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
-		const viewportTransform = canvasRef.current?.viewportTransform as unknown as number[];
+		const viewportTransform = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 		renderAxis(canvasRef, xaxisRef, yaxisRef, blockRef, colorScheme);
 		handleZoomRuler(canvasRef, 1, viewportTransform, canvasRef.current as fabric.Canvas, blockRef);
 	};
@@ -364,13 +421,15 @@ function App() {
 		artboardRef.current = artboardRect;
 		// Save the state of the canvas
 		const json = canvasRef.current?.toJSON(FABRIC_JSON_ALLOWED_KEYS);
+
+		const filteredObjects = filterSaveExcludes(json?.objects);
 		const updatedArtboards = [
 			...artboards,
 			{
 				...newArtboard,
 				state: {
 					...json,
-					objects: filterSnappingExcludes(json?.objects),
+					objects: filteredObjects,
 				},
 			},
 		];
@@ -572,7 +631,7 @@ function App() {
 					...item,
 					state: {
 						...json,
-						objects: filterSnappingExcludes(json?.objects),
+						objects: filterSaveExcludes(json?.objects),
 					},
 				};
 			}
@@ -709,7 +768,8 @@ function App() {
 			if (artboard) {
 				artboardRef.current = artboard as fabric.Rect;
 			}
-			zoomToFit();
+			//TODO: comeback at this
+			// zoomToFit();
 
 			// create a style sheet
 			const artboardTexts = canvasRef.current?.getObjects().filter(item => item.type === 'textbox');
@@ -819,7 +879,7 @@ function App() {
 					zoom = minZoom;
 				}
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-				const pan = canvasRef?.current?.viewportTransform as number[];
+				const pan = canvasRef?.current?.viewportTransform as FixedArray<number, 6>;
 				const canvasWidth = canvasRef?.current?.width as number;
 				const canvasHeight = canvasRef?.current?.height as number;
 				xaxisRef?.current?.set({
@@ -847,7 +907,7 @@ function App() {
 				setZoomLevel(zoom);
 				canvas.renderAll();
 			} else {
-				const pan = canvas.viewportTransform as number[];
+				const pan = canvas.viewportTransform as FixedArray<number, 6> | undefined;
 				if (!pan) {
 					return;
 				}
@@ -1302,3 +1362,13 @@ const useStyles = createStyles(theme => ({
 }));
 
 export default App;
+function removeMovingMarker(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
+	canvasRef.current
+		?.getObjects()
+		.filter(item =>
+			[RULER_ELEMENTS.X_MOVE_MARKER, RULER_ELEMENTS.Y_MOVE_MARKER].includes(item.data?.type as RULER_ELEMENTS),
+		)
+		.forEach(item => {
+			canvasRef.current?.remove(item);
+		});
+}
