@@ -268,7 +268,7 @@ function App() {
 					left: (target.left as number) + 5 / zoom,
 					top: (-pan[5] + 20) / zoom,
 					fill: 'red',
-					fontFamily: 'Monospace',
+					fontFamily: 'Inter',
 					fontSize: 12 / zoom,
 					data: { type: RULER_ELEMENTS.X_MOVE_MARKER },
 				}),
@@ -283,7 +283,7 @@ function App() {
 					left: (-pan[4] + 20) / zoom,
 					top: (target.top as number) - 5 / zoom,
 					fill: 'red',
-					fontFamily: 'Monospace',
+					fontFamily: 'Inter',
 					angle: 270,
 					fontSize: 12 / zoom,
 					data: { type: RULER_ELEMENTS.Y_MOVE_MARKER },
@@ -750,6 +750,7 @@ function App() {
 		}
 
 		const activeObjects = canvas.getActiveObjects();
+		console.log('🚀 ~ file: App.tsx:753 ~ deleteElement ~ activeObjects:', activeObjects);
 		if (!activeObjects.length) {
 			return;
 		}

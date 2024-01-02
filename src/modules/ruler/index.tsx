@@ -81,7 +81,7 @@ export function handleZoomRuler(
 			left: i - getAdjustedMarkerTextPosition(i) / zoom,
 			top: -pan[5] / zoom,
 			fontSize: 10 / zoom,
-			fontFamily: 'Monospace',
+			fontFamily: 'Inter',
 			selectable: false,
 			hoverCursor: 'default',
 			data: {
@@ -114,7 +114,7 @@ export function handleZoomRuler(
 			top: i + getAdjustedMarkerTextPosition(i) / zoom,
 			left: -pan[4] / zoom,
 			fontSize: 10 / zoom,
-			fontFamily: 'Monospace',
+			fontFamily: 'Inter',
 			fill: '#000',
 			selectable: false,
 			angle: 270,

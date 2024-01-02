@@ -17,11 +17,12 @@ type PanelProps = {
 
 const Panel = ({ canvas, currentSelectedElements, artboardRef, saveArtboardChanges }: PanelProps) => {
 	const isVideoEnabled = localStorage.getItem('video') === 'true';
-
-	if (!currentSelectedElements.length) {
+	const isRulerLine = [RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(
+		currentSelectedElements?.[0]?.data?.type,
+	);
+	if (!currentSelectedElements.length || isRulerLine) {
 		return null;
 	}
-
 	return (
 		<Stack>
 			{currentSelectedElements.length === 1 && (
@@ -32,16 +33,8 @@ const Panel = ({ canvas, currentSelectedElements, artboardRef, saveArtboardChang
 						currentSelectedElements={currentSelectedElements}
 					/>
 					<Divider />
-
-					{![RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(
-						currentSelectedElements?.[0]?.data?.type,
-					) ? (
-						<>
-							<Position canvas={canvas} currentSelectedElements={currentSelectedElements} />
-							<Divider />
-						</>
-					) : null}
-
+					<Position canvas={canvas} currentSelectedElements={currentSelectedElements} />
+					<Divider />
 					{currentSelectedElements?.[0]?.type === 'textbox' && (
 						<TextPanel
 							artboardRef={artboardRef}
