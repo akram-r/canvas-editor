@@ -276,11 +276,7 @@ function App() {
 		// Place the canvas in the center of the screen
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
-		if (showRuler) {
-			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
-			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-		}
+		renderRuler();
 	};
 
 	const centerBoardToCanvas = (artboardRef: React.MutableRefObject<fabric.Rect | null>) => {
@@ -642,6 +638,15 @@ function App() {
 		);
 	};
 
+	const renderRuler = () => {
+		if (showRuler) {
+			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
+			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
+			adjustRulerLinesPosition(canvasRef);
+		}
+	};
+
 	const zoomToFit = () => {
 		const canvas = canvasRef.current;
 
@@ -671,11 +676,7 @@ function App() {
 		centerBoardToCanvas(artboardRef);
 
 		setZoomLevel(canvasRef.current?.getZoom() || zoom);
-		if (showRuler) {
-			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
-			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-		}
+		renderRuler();
 	};
 
 	const zoomIn = () => {
@@ -684,11 +685,7 @@ function App() {
 			zoomFromCenter(zoom + 0.1);
 			setZoomLevel(canvasRef.current?.getZoom() || zoom + 0.1);
 		}
-		if (showRuler) {
-			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
-			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-		}
+		renderRuler();
 	};
 
 	const zoomOut = () => {
@@ -697,11 +694,7 @@ function App() {
 			zoomFromCenter(zoom - 0.1);
 			setZoomLevel(canvasRef.current?.getZoom() || zoom - 0.1);
 		}
-		if (showRuler) {
-			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
-			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-		}
+		renderRuler();
 	};
 
 	const deleteElement = () => {
@@ -836,11 +829,7 @@ function App() {
 			});
 
 			guidesRef.current = createSnappingLines(canvasRef);
-			if (showRuler) {
-				renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
-				adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-				renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-			}
+			renderRuler();
 			// Get the src of the video element and add it to the canvas
 			const videoElements = canvasRef.current?.getObjects().filter(item => item.data?.type === 'video');
 			if (videoElements?.length) {
@@ -855,7 +844,6 @@ function App() {
 	}, [selectedArtboard, artboards]);
 
 	useEffect(() => {
-		console.log('show', showRuler);
 		if (showRuler) {
 			initializeRuler(canvasRef, colorSchemeRef.current);
 		} else {
@@ -890,12 +878,8 @@ function App() {
 				}
 				canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
 				setZoomLevel(zoom);
+				renderRuler();
 				canvas.renderAll();
-				if (showRuler) {
-					adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-					adjustRulerLinesPosition(canvasRef);
-					renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-				}
 			} else {
 				const pan = canvas.viewportTransform as FixedArray<number, 6> | undefined;
 				if (!pan) {
@@ -903,24 +887,8 @@ function App() {
 				}
 				pan[4] -= e.deltaX;
 				pan[5] -= e.deltaY;
-				canvasRef.current
-					?.getObjects()
-					.filter(
-						item =>
-							item.data?.type === RULER_ELEMENTS.X_RULER_MARKER ||
-							item.data?.type === RULER_ELEMENTS.X_RULER_MARKER_TEXT ||
-							item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER ||
-							item.data?.type === RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
-					)
-					.forEach(item => {
-						canvasRef.current?.remove(item);
-					});
-				if (showRuler) {
-					adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
-					adjustRulerLinesPosition(canvasRef);
-					renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
-					setCanvasScrollPoints(pan[4] + pan[5]);
-				}
+				renderRuler();
+				setCanvasScrollPoints(pan[4] + pan[5]);
 				canvas.requestRenderAll();
 			}
 		};
@@ -936,11 +904,7 @@ function App() {
 				width: window.innerWidth,
 				height: window.innerHeight - 60,
 			});
-			if (showRuler) {
-				renderRulerAxisBackground(canvasRef);
-				adjustRulerLinesPosition(canvasRef);
-				renderRulerStepMarkers(canvasRef);
-			}
+			renderRuler();
 		};
 
 		window.addEventListener('resize', handleResize);

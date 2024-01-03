@@ -305,7 +305,7 @@ export function adjustRulerBackgroundPosition(
 export function removeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
 	canvasRef.current
 		?.getObjects()
-		.filter(x => Object.values(RULER_ELEMENTS).includes(x.data?.type))
+		.filter(x => [...Object.values(RULER_LINES), ...Object.values(RULER_ELEMENTS)].includes(x.data?.type))
 		.forEach(x => {
 			canvasRef.current?.remove(x);
 		});

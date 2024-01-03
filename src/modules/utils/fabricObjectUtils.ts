@@ -12,7 +12,8 @@ const isLayerPanelExclude = (obj: fabric.Object) =>
 const isExportExclude = (obj: fabric.Object) =>
 	isRulerElementsExclude(obj) && isRulerLineExclude(obj) && isSnappingExclude(obj);
 
-const isSaveExclude = (obj: fabric.Object) => isSnappingExclude(obj) && isRulerElementsExclude(obj);
+const isSaveExclude = (obj: fabric.Object) =>
+	isSnappingExclude(obj) && isRulerElementsExclude(obj) && isRulerLineExclude(obj);
 
 export const filterSnappingExcludes = (arr: fabric.Object[] | undefined) => {
 	if (!arr) return [];
