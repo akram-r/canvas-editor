@@ -43,8 +43,8 @@ const SettingsMenu: React.FC<Props> = ({
 	const [colorSpaceModalOpened, { open: openColorSpaceModal, close: closeColorSpaceModal }] = useDisclosure();
 	const [snapDistanceModalOpened, { open: openSnapDistanceModal, close: closeSnapDistanceModal }] = useDisclosure();
 	const debug = () => {
-		console.log('JSON=', canvasRef.current?.toJSON(FABRIC_JSON_ALLOWED_KEYS));
-		console.log('All Fabric Objects', canvasRef.current?.getObjects());
+		console.log('json=', canvasRef.current?.toJSON(FABRIC_JSON_ALLOWED_KEYS));
+		console.log('fabric-objects=', canvasRef.current?.getObjects());
 		notifications.show({
 			icon: <IconBug size={14} />,
 			title: 'Logged state',

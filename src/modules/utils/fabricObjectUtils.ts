@@ -1,10 +1,18 @@
-import { RULER_ELEMENTS } from '../ruler';
+import { RULER_ELEMENTS, RULER_LINES } from '../ruler';
 
 const isSnappingExclude = (obj: fabric.Object) => !obj?.data?.isSnappingLine && !obj?.data?.ignoreSnapping;
 
-const isRulerExclude = (obj: fabric.Object) => !Object.values(RULER_ELEMENTS).includes(obj?.data?.type);
+const isRulerElementsExclude = (obj: fabric.Object) => !Object.values(RULER_ELEMENTS).includes(obj?.data?.type);
 
-const isSaveExclude = (obj: fabric.Object) => isSnappingExclude(obj) && isRulerExclude(obj);
+const isRulerLineExclude = (obj: fabric.Object) => !Object.values(RULER_LINES).includes(obj?.data?.type);
+
+const isLayerPanelExclude = (obj: fabric.Object) =>
+	isRulerElementsExclude(obj) && isRulerLineExclude(obj) && isSnappingExclude(obj);
+
+const isExportExclude = (obj: fabric.Object) =>
+	isRulerElementsExclude(obj) && isRulerLineExclude(obj) && isSnappingExclude(obj);
+
+const isSaveExclude = (obj: fabric.Object) => isSnappingExclude(obj) && isRulerElementsExclude(obj);
 
 export const filterSnappingExcludes = (arr: fabric.Object[] | undefined) => {
 	if (!arr) return [];
@@ -13,12 +21,21 @@ export const filterSnappingExcludes = (arr: fabric.Object[] | undefined) => {
 
 export const filterRulerExcludes = (arr: fabric.Object[] | undefined) => {
 	if (!arr) return [];
-	return arr.filter(isRulerExclude);
+	return arr.filter(isRulerElementsExclude);
 };
 
 export const filterSaveExcludes = (arr: fabric.Object[] | undefined) => {
 	if (!arr) return [];
 	const res = arr.filter(isSaveExclude);
-	console.log('🚀 ~ file: fabricObjectUtils.ts:27 ~ filterSaveExcludes ~ res:', res);
 	return res;
+};
+
+export const filterLayerPanelExcludes = (arr: fabric.Object[] | undefined) => {
+	if (!arr) return [];
+	return arr.filter(isLayerPanelExclude);
+};
+
+export const filterExportExcludes = (arr: fabric.Object[] | undefined) => {
+	if (!arr) return [];
+	return arr.filter(isExportExclude);
 };

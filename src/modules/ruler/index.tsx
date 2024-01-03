@@ -10,8 +10,8 @@ export const RULER_ELEMENTS = {
 	Y_RULER_MARKER: 'Y_RULER_MARKER',
 	X_RULER_MARKER_TEXT: 'X_RULER_MARKER_TEXT',
 	Y_RULER_MARKER_TEXT: 'Y_RULER_MARKER_TEXT',
-	X_MOVE_MARKER: 'X_MOVE_MARKER',
-	Y_MOVE_MARKER: 'Y_MOVE_MARKER',
+	X_ON_MOVE_MARKER: 'X_ON_MOVE_MARKER',
+	Y_ON_MOVE_MARKER: 'Y_ON_MOVE_MARKER',
 	BLOCK: 'BLOCK',
 } as const;
 
@@ -20,19 +20,7 @@ export const RULER_LINES = {
 	Y_RULER_LINE: 'Y_RULER_LINE',
 } as const;
 
-// export function getCanvasZoomScale(zoom: number): number {
-// 	if (zoom <= 0.05) return 2000;
-// 	if (zoom <= 0.1) return 1000;
-// 	if (zoom <= 0.2) return 500;
-// 	if (zoom <= 0.5) return 250;
-// 	if (zoom < 1) return 100;
-// 	if (zoom >= 1 && zoom < 3) return 50;
-// 	if (zoom >= 3 && zoom < 6) return 25;
-// 	if (zoom >= 6 && zoom < 8) return 10;
-// 	if (zoom >= 8) return 5;
-// 	return 100;
-// }
-export function getCanvasZoomScale(zoom: number): number {
+export function getRulerZoomScale(zoom: number): number {
 	if (zoom <= 0.02) return 5000;
 	if (zoom <= 0.05) return 2500;
 	if (zoom <= 0.1) return 1000;
@@ -51,20 +39,22 @@ export function getCanvasZoomScale(zoom: number): number {
 const getAdjustedMarkerTextPosition = (num: number) => {
 	const sign = Math.sign(num) > 0;
 	const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
-	if (num === 0) return 3;
-	return sign ? 3 + digits : 10;
+	if (num === 0 || digits === 1) return 3;
+	return sign ? 3 + digits : 5 + digits;
 };
-export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
+
+// render ruler step lines and markers
+export function renderRulerStepMarkers(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
 	canvasRef.current
 		?.getObjects()
 		.filter(item =>
 			[
 				RULER_ELEMENTS.X_RULER_MARKER,
-				RULER_ELEMENTS.X_RULER_MARKER_TEXT,
 				RULER_ELEMENTS.Y_RULER_MARKER,
+				RULER_ELEMENTS.X_RULER_MARKER_TEXT,
 				RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
-				RULER_ELEMENTS.X_MOVE_MARKER,
-				RULER_ELEMENTS.Y_MOVE_MARKER,
+				RULER_ELEMENTS.X_ON_MOVE_MARKER,
+				RULER_ELEMENTS.Y_ON_MOVE_MARKER,
 			].includes(item.data?.type),
 		)
 		.forEach(item => {
@@ -72,9 +62,8 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 		});
 	const { left, top } = getCanvasVisibleTopLeft(canvasRef);
 	const zoom = canvasRef.current?.getZoom() as number;
-	console.log('zoom inside handlezoo,', zoom);
 	const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
-	const interval = getCanvasZoomScale(zoom);
+	const interval = getRulerZoomScale(zoom);
 	const nearest = Math.round(left / interval) * interval;
 	const canvasWidth = canvasRef.current?.width as number;
 	for (let i = nearest; i < (canvasWidth + -pan[4]) / zoom; i += interval) {
@@ -100,7 +89,6 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 			fontFamily: 'Inter',
 			selectable: false,
 			hoverCursor: 'default',
-			dirty: true,
 			data: {
 				ignoreSnapping: true,
 				type: RULER_ELEMENTS.X_RULER_MARKER_TEXT,
@@ -159,7 +147,10 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 	canvasRef.current?.requestRenderAll();
 }
 
-export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
+export function renderRulerAxisBackground(
+	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
+	colorScheme = 'light',
+) {
 	const zoom = canvasRef.current?.getZoom() as number;
 	const xaxis = new fabric.Rect({
 		left: 0,
@@ -171,7 +162,6 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
-			displayText: 'Shape',
 			id: generateId(),
 			ignoreSnapping: true,
 			type: RULER_ELEMENTS.X_RULER_BACKGROUND,
@@ -187,7 +177,6 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
-			displayText: 'Shape',
 			id: generateId(),
 			type: RULER_ELEMENTS.Y_RULER_BACKGROUND,
 			ignoreSnapping: true,
@@ -203,7 +192,6 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
-			displayText: 'Shape',
 			id: generateId(),
 			type: RULER_ELEMENTS.BLOCK,
 			ignoreSnapping: true,
@@ -223,8 +211,7 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 	canvasRef.current?.requestRenderAll();
 }
 
-export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
-	console.log(colorScheme);
+export function adjustRulerLinesPosition(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
 	const allObjects = canvasRef?.current?.getObjects() as fabric.Object[];
 	const zoom = canvasRef.current?.getZoom() as number;
 	const canvasHeight = canvasRef.current?.height as number;
@@ -258,15 +245,10 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 		});
 }
 
-export function filterRulerObjects(arr: fabric.Object[] | undefined) {
-	if (!arr) return [];
-	return arr.filter(obj => !Object.values(RULER_ELEMENTS).includes(obj?.data?.type));
-}
-
-export function removeMovingMarker(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
+export function removeRulerOnMoveMarker(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
 	canvasRef.current
 		?.getObjects()
-		.filter(item => [RULER_ELEMENTS.X_MOVE_MARKER, RULER_ELEMENTS.Y_MOVE_MARKER].includes(item.data?.type))
+		.filter(item => [RULER_ELEMENTS.X_ON_MOVE_MARKER, RULER_ELEMENTS.Y_ON_MOVE_MARKER].includes(item.data?.type))
 		.forEach(item => {
 			canvasRef.current?.remove(item);
 		});
@@ -284,7 +266,10 @@ export function findBlock(canvasRef: React.MutableRefObject<fabric.Canvas | null
 	return canvasRef.current?.getObjects().find(x => x.data.type === RULER_ELEMENTS.BLOCK);
 }
 
-export function rulerBackgroundAdjust(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
+export function adjustRulerBackgroundPosition(
+	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
+	colorScheme = 'light',
+) {
 	const xaxis = findXAxis(canvasRef);
 	const yaxis = findYAxis(canvasRef);
 	const block = findBlock(canvasRef);
@@ -318,7 +303,6 @@ export function rulerBackgroundAdjust(canvasRef: React.MutableRefObject<fabric.C
 }
 
 export function removeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
-	console.log('removed');
 	canvasRef.current
 		?.getObjects()
 		.filter(x => Object.values(RULER_ELEMENTS).includes(x.data?.type))
@@ -329,9 +313,81 @@ export function removeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | nu
 }
 
 export function initializeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
-	renderAxis(canvasRef, colorScheme);
-	rulerBackgroundAdjust(canvasRef, colorScheme);
-	rulerMarkerAdjust(canvasRef, colorScheme);
-	handleZoomRuler(canvasRef, colorScheme);
+	renderRulerAxisBackground(canvasRef, colorScheme);
+	adjustRulerBackgroundPosition(canvasRef, colorScheme);
+	adjustRulerLinesPosition(canvasRef);
+	renderRulerStepMarkers(canvasRef, colorScheme);
 	canvasRef.current?.requestRenderAll();
+}
+
+export function addNewRulerLine(options: fabric.IEvent, canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
+	if (
+		[RULER_ELEMENTS.X_RULER_BACKGROUND, RULER_ELEMENTS.X_RULER_MARKER, RULER_ELEMENTS.X_RULER_MARKER_TEXT].includes(
+			options?.target?.data?.type,
+		)
+	) {
+		const zoom = canvasRef.current?.getZoom() as number;
+		const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
+		const canvasHeight =
+			zoom > 1 ? (canvasRef.current?.height as number) : (canvasRef.current?.height as number) / zoom;
+		const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
+		const line = new fabric.Line([pointer.x, (-pan[5] + 20) / zoom, pointer.x, canvasHeight], {
+			stroke: '#000',
+			strokeWidth: 2 / zoom,
+			hasControls: false,
+			hasBorders: false,
+			lockRotation: true,
+			lockMovementY: true,
+			lockScalingX: true,
+			lockScalingY: true,
+			lockUniScaling: true,
+			lockSkewingX: true,
+			lockSkewingY: true,
+			lockScalingFlip: true,
+			data: {
+				type: RULER_LINES.X_RULER_LINE,
+				id: generateId(),
+			},
+		});
+		line.bringToFront();
+		line.set({ height: canvasHeight, width: 0 });
+		line.setCoords();
+		canvasRef.current?.add(line);
+		canvasRef.current?.renderAll();
+	} else if (
+		[RULER_ELEMENTS.Y_RULER_BACKGROUND, RULER_ELEMENTS.Y_RULER_MARKER, RULER_ELEMENTS.Y_RULER_MARKER_TEXT].includes(
+			options?.target?.data?.type,
+		)
+	) {
+		const zoom = canvasRef.current?.getZoom() as number;
+		const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
+		const canvasWidth =
+			zoom > 1 ? (canvasRef.current?.width as number) : (canvasRef.current?.width as number) / zoom;
+		const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
+		const line = new fabric.Line([(-pan[4] + 20) / zoom, pointer.y, canvasWidth, pointer.y], {
+			stroke: '#000',
+			strokeWidth: 2 / zoom,
+			lockMovementX: true,
+			hasControls: false,
+			lockRotation: true,
+			lockScalingX: true,
+			lockScalingY: true,
+			hasBorders: false,
+			lockUniScaling: true,
+			lockSkewingX: true,
+			lockSkewingY: true,
+			lockScalingFlip: true,
+			data: {
+				type: RULER_LINES.Y_RULER_LINE,
+				id: generateId(),
+			},
+		});
+		line.bringToFront();
+		line.set({ width: canvasWidth, height: 0 });
+		line.setCoords();
+		canvasRef.current?.add(line);
+		canvasRef.current?.requestRenderAll();
+	} else if (Object.values(RULER_LINES).includes(options?.target?.data?.type)) {
+		options.target?.set({ fill: 'red', stroke: 'red' });
+	}
 }

@@ -42,15 +42,16 @@ import { createSnappingLines, snapToObject } from './modules/snapping';
 import {
 	RULER_ELEMENTS,
 	RULER_LINES,
-	handleZoomRuler,
+	addNewRulerLine,
+	renderRulerStepMarkers,
 	initializeRuler,
-	removeMovingMarker,
+	removeRulerOnMoveMarker,
 	removeRuler,
-	renderAxis,
-	rulerBackgroundAdjust,
-	rulerMarkerAdjust,
+	renderRulerAxisBackground,
+	adjustRulerBackgroundPosition,
+	adjustRulerLinesPosition,
 } from './modules/ruler';
-import { filterSaveExcludes, filterSnappingExcludes } from './modules/utils/fabricObjectUtils';
+import { filterExportExcludes, filterSaveExcludes, filterSnappingExcludes } from './modules/utils/fabricObjectUtils';
 import { useModalStyles } from './styles/modal';
 import { Artboard, FixedArray, colorSpaceType, guidesRefType, snappingObjectType } from './types';
 import { generateId, getMultiplierFor4K } from './utils';
@@ -133,11 +134,12 @@ function App() {
 
 	useEffect(() => {
 		if (canvasRef.current && colorSchemeRef.current !== theme.colorScheme) {
-			rulerBackgroundAdjust(canvasRef, theme.colorScheme);
-			handleZoomRuler(canvasRef, theme.colorScheme);
+			adjustRulerBackgroundPosition(canvasRef, theme.colorScheme);
+			renderRulerStepMarkers(canvasRef, theme.colorScheme);
 		}
 		colorSchemeRef.current = theme.colorScheme;
 	}, [theme.colorScheme]);
+
 	useEffect(() => {
 		canvasRef.current = new fabric.Canvas('canvas', {
 			// create a canvas with clientWidth and clientHeight
@@ -148,7 +150,6 @@ function App() {
 		});
 		// Handle element selection TODO: add more element type and handle it
 		canvasRef.current?.on('selection:created', function (event) {
-			console.log('selection created', event);
 			setCurrentSelectedElements(event.selected as fabric.Object[]);
 		});
 		canvasRef.current?.on('selection:updated', function (event) {
@@ -157,7 +158,7 @@ function App() {
 				.forEach(item => {
 					item.set({ stroke: '#000', fill: '#000' });
 				});
-			removeMovingMarker(canvasRef);
+			removeRulerOnMoveMarker(canvasRef);
 			setCurrentSelectedElements(arr => {
 				if (!arr) {
 					return null;
@@ -180,92 +181,18 @@ function App() {
 			});
 		});
 		canvasRef.current?.on('selection:cleared', function (e) {
-			console.log('e', e);
-			removeMovingMarker(canvasRef);
+			removeRulerOnMoveMarker(canvasRef);
 			e?.deselected
 				?.filter(item => Object.values(RULER_LINES).includes(item.data?.type))
 				.forEach(item => {
-					console.log('seeee');
 					item.set({ stroke: '#000', fill: '#000' });
+					item.setCoords();
 				});
 			setCurrentSelectedElements(null);
 		});
 		// Add a click event listener to the canvas
-		canvasRef.current.on('mouse:down', function (options) {
-			if (
-				[
-					RULER_ELEMENTS.X_RULER_BACKGROUND,
-					RULER_ELEMENTS.X_RULER_MARKER,
-					RULER_ELEMENTS.X_RULER_MARKER_TEXT,
-				].includes(options?.target?.data?.type)
-			) {
-				const zoom = canvasRef.current?.getZoom() as number;
-				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
-				const canvasHeight =
-					zoom > 1 ? (canvasRef.current?.height as number) : (canvasRef.current?.height as number) / zoom;
-				const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
-				const line = new fabric.Line([pointer.x, (-pan[5] + 20) / zoom, pointer.x, canvasHeight], {
-					stroke: '#000',
-					strokeWidth: 2 / zoom,
-					hasControls: false,
-					hasBorders: false,
-					lockRotation: true,
-					lockMovementY: true,
-					lockScalingX: true,
-					lockScalingY: true,
-					lockUniScaling: true,
-					lockSkewingX: true,
-					lockSkewingY: true,
-					lockScalingFlip: true,
-					data: {
-						type: RULER_LINES.X_RULER_LINE,
-						id: generateId(),
-					},
-				});
-				line.bringToFront();
-				line.set({ height: canvasHeight, width: 0 });
-				line.setCoords();
-				canvasRef.current?.add(line);
-				canvasRef.current?.renderAll();
-			} else if (
-				[
-					RULER_ELEMENTS.Y_RULER_BACKGROUND,
-					RULER_ELEMENTS.Y_RULER_MARKER,
-					RULER_ELEMENTS.Y_RULER_MARKER_TEXT,
-				].includes(options?.target?.data?.type)
-			) {
-				const zoom = canvasRef.current?.getZoom() as number;
-				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
-				const canvasWidth =
-					zoom > 1 ? (canvasRef.current?.width as number) : (canvasRef.current?.width as number) / zoom;
-				const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
-				const line = new fabric.Line([(-pan[4] + 20) / zoom, pointer.y, canvasWidth, pointer.y], {
-					stroke: '#000',
-					strokeWidth: 2 / zoom,
-					lockMovementX: true,
-					hasControls: false,
-					lockRotation: true,
-					lockScalingX: true,
-					lockScalingY: true,
-					hasBorders: false,
-					lockUniScaling: true,
-					lockSkewingX: true,
-					lockSkewingY: true,
-					lockScalingFlip: true,
-					// padding: zoom > 1 ? 10 / zoom : 10 / zoom,
-					data: {
-						type: RULER_LINES.Y_RULER_LINE,
-						id: generateId(),
-					},
-				});
-				line.bringToFront();
-				line.set({ width: canvasWidth, height: 0 });
-				line.setCoords();
-				canvasRef.current?.add(line);
-				canvasRef.current?.requestRenderAll();
-			} else if (Object.values(RULER_LINES).includes(options?.target?.data?.type)) {
-				options.target?.set({ fill: 'red', stroke: 'red' });
-			}
+		canvasRef.current.on('mouse:down', options => {
+			addNewRulerLine(options, canvasRef);
 		});
 
 		return () => {
@@ -275,8 +202,8 @@ function App() {
 
 	const onMoveHandler = (options: fabric.IEvent) => {
 		const target = options.target as fabric.Object;
-		if ([RULER_LINES.X_RULER_LINE].includes(target.data?.type)) {
-			removeMovingMarker(canvasRef);
+		if (RULER_LINES.X_RULER_LINE === target.data?.type) {
+			removeRulerOnMoveMarker(canvasRef);
 			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 			const zoom = canvasRef.current?.getZoom() as number;
 			canvasRef.current?.add(
@@ -286,12 +213,12 @@ function App() {
 					fill: 'red',
 					fontFamily: 'Inter',
 					fontSize: 12 / zoom,
-					data: { type: RULER_ELEMENTS.X_MOVE_MARKER },
+					data: { type: RULER_ELEMENTS.X_ON_MOVE_MARKER, id: generateId() },
 				}),
 			);
 			return;
-		} else if ([RULER_LINES.Y_RULER_LINE].includes(target.data?.type)) {
-			removeMovingMarker(canvasRef);
+		} else if (RULER_LINES.Y_RULER_LINE === target.data?.type) {
+			removeRulerOnMoveMarker(canvasRef);
 			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 			const zoom = canvasRef.current?.getZoom() as number;
 			canvasRef.current?.add(
@@ -302,7 +229,7 @@ function App() {
 					fontFamily: 'Inter',
 					angle: 270,
 					fontSize: 12 / zoom,
-					data: { type: RULER_ELEMENTS.Y_MOVE_MARKER },
+					data: { type: RULER_ELEMENTS.Y_ON_MOVE_MARKER, id: generateId() },
 				}),
 			);
 			return;
@@ -350,9 +277,9 @@ function App() {
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
 		if (showRuler) {
-			renderAxis(canvasRef, colorSchemeRef.current);
-			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
+			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -451,7 +378,6 @@ function App() {
 		artboardRef.current = artboardRect;
 		// Save the state of the canvas
 		const json = canvasRef.current?.toJSON(FABRIC_JSON_ALLOWED_KEYS);
-
 		const filteredObjects = filterSaveExcludes(json?.objects);
 		const updatedArtboards = [
 			...artboards,
@@ -463,6 +389,7 @@ function App() {
 				},
 			},
 		];
+		console.log(updatedArtboards);
 		dispatch(setArtboards(updatedArtboards));
 		newArtboardForm.reset();
 		close();
@@ -554,7 +481,7 @@ function App() {
 		});
 		const adjustedStateJSON = {
 			...stateJSON,
-			objects: adjustedStateJSONObjects,
+			objects: filterExportExcludes(adjustedStateJSONObjects),
 		};
 
 		offscreenCanvas.loadFromJSON(adjustedStateJSON, () => {
@@ -658,10 +585,33 @@ function App() {
 		dispatch(setArtboards(updatedArtboards));
 	};
 
-	const getMaxMinZoomLevel = () => {
+	const getMaxMinZoomLevel = (dimensions: { width: number; height: number }) => {
+		const { width, height } = dimensions;
+
+		if (width >= 10000 || height >= 10000) {
+			return {
+				minZoom: 0.01,
+				maxZoom: 5,
+			};
+		}
+
+		if (width >= 5000 || height >= 5000) {
+			return {
+				minZoom: 0.025,
+				maxZoom: 10,
+			};
+		}
+
+		if (width >= 2000 || height >= 2000) {
+			return {
+				minZoom: 0.1,
+				maxZoom: 20,
+			};
+		}
+
 		return {
-			minZoom: 0.02,
-			maxZoom: 20,
+			minZoom: 0.1,
+			maxZoom: 10,
 		};
 	};
 
@@ -671,7 +621,10 @@ function App() {
 			return;
 		}
 
-		const { minZoom, maxZoom } = getMaxMinZoomLevel();
+		const { minZoom, maxZoom } = getMaxMinZoomLevel({
+			width: selectedArtboard?.width || 1,
+			height: selectedArtboard?.height || 1,
+		});
 
 		if (zoom > maxZoom) zoom = maxZoom;
 		if (zoom < minZoom) zoom = minZoom;
@@ -714,14 +667,14 @@ function App() {
 		// const zoom = Math.min(canvasWidth / artboardWidth, canvasHeight / artboardHeight);
 
 		// Zoom to the center of the canvas
-		// zoomFromCenter(zoom);
+		zoomFromCenter(zoom);
 		centerBoardToCanvas(artboardRef);
 
 		setZoomLevel(canvasRef.current?.getZoom() || zoom);
 		if (showRuler) {
-			renderAxis(canvasRef, colorSchemeRef.current);
-			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
+			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -732,9 +685,9 @@ function App() {
 			setZoomLevel(canvasRef.current?.getZoom() || zoom + 0.1);
 		}
 		if (showRuler) {
-			renderAxis(canvasRef, colorSchemeRef.current);
-			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
+			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -745,9 +698,9 @@ function App() {
 			setZoomLevel(canvasRef.current?.getZoom() || zoom - 0.1);
 		}
 		if (showRuler) {
-			renderAxis(canvasRef, colorSchemeRef.current);
-			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
+			adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+			renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -758,7 +711,6 @@ function App() {
 		}
 
 		const activeObjects = canvas.getActiveObjects();
-		console.log('🚀 ~ file: App.tsx:753 ~ deleteElement ~ activeObjects:', activeObjects);
 		if (!activeObjects.length) {
 			return;
 		}
@@ -884,10 +836,11 @@ function App() {
 			});
 
 			guidesRef.current = createSnappingLines(canvasRef);
-
-			renderAxis(canvasRef, colorSchemeRef.current);
-			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
+			if (showRuler) {
+				renderRulerAxisBackground(canvasRef, colorSchemeRef.current);
+				adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+				renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
+			}
 			// Get the src of the video element and add it to the canvas
 			const videoElements = canvasRef.current?.getObjects().filter(item => item.data?.type === 'video');
 			if (videoElements?.length) {
@@ -900,19 +853,6 @@ function App() {
 			canvas.requestRenderAll();
 		});
 	}, [selectedArtboard, artboards]);
-
-	// useEffect(() => {
-	// 	const xaxis = findXAxis(canvasRef);
-	// 	const yaxis = findYAxis(canvasRef);
-	// 	xaxis?.set({
-	// 		fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
-	// 		stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
-	// 	});
-	// 	yaxis?.set({
-	// 		fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
-	// 		stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
-	// 	});
-	// }, [selectedArtboard, artboards]);
 
 	useEffect(() => {
 		console.log('show', showRuler);
@@ -937,9 +877,12 @@ function App() {
 
 			if (e.ctrlKey || e.metaKey) {
 				const delta = opt.e.deltaY;
-				let zoom = canvasRef?.current?.getZoom() as number;
+				let zoom = canvas.getZoom() as number;
 				zoom *= 0.99 ** delta;
-				const { minZoom, maxZoom } = getMaxMinZoomLevel();
+				const { minZoom, maxZoom } = getMaxMinZoomLevel({
+					width: selectedArtboard?.width || 1,
+					height: selectedArtboard?.height || 1,
+				});
 				if (zoom > maxZoom) zoom = maxZoom;
 				if (zoom < minZoom) zoom = minZoom;
 				if (!zoom || isNaN(zoom)) {
@@ -949,9 +892,9 @@ function App() {
 				setZoomLevel(zoom);
 				canvas.renderAll();
 				if (showRuler) {
-					rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-					rulerMarkerAdjust(canvasRef, colorSchemeRef.current);
-					handleZoomRuler(canvasRef, colorSchemeRef.current);
+					adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+					adjustRulerLinesPosition(canvasRef);
+					renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
 				}
 			} else {
 				const pan = canvas.viewportTransform as FixedArray<number, 6> | undefined;
@@ -973,9 +916,9 @@ function App() {
 						canvasRef.current?.remove(item);
 					});
 				if (showRuler) {
-					rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-					rulerMarkerAdjust(canvasRef, colorSchemeRef.current);
-					handleZoomRuler(canvasRef, colorSchemeRef.current);
+					adjustRulerBackgroundPosition(canvasRef, colorSchemeRef.current);
+					adjustRulerLinesPosition(canvasRef);
+					renderRulerStepMarkers(canvasRef, colorSchemeRef.current);
 					setCanvasScrollPoints(pan[4] + pan[5]);
 				}
 				canvas.requestRenderAll();
@@ -989,16 +932,14 @@ function App() {
 	// Update canvas size when viewport size changes
 	useEffect(() => {
 		const handleResize = () => {
-			const width = window.innerWidth;
-			const height = window.innerHeight;
 			canvasRef.current?.setDimensions({
-				width: width,
-				height: height - 60,
+				width: window.innerWidth,
+				height: window.innerHeight - 60,
 			});
 			if (showRuler) {
-				renderAxis(canvasRef);
-				rulerMarkerAdjust(canvasRef);
-				handleZoomRuler(canvasRef);
+				renderRulerAxisBackground(canvasRef);
+				adjustRulerLinesPosition(canvasRef);
+				renderRulerStepMarkers(canvasRef);
 			}
 		};
 
