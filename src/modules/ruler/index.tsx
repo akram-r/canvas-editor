@@ -235,6 +235,7 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 				top: (-pan[5] + 20) / zoom,
 				height: canvasHeight / zoom,
 				padding: 10 / zoom,
+				width: 0,
 			});
 			x.setCoords();
 		});
@@ -248,6 +249,7 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 				left: (-pan[4] + 20) / zoom,
 				width: canvasWidth / zoom,
 				padding: 10 / zoom,
+				height: 0,
 			});
 			x.setCoords();
 		});

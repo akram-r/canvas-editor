@@ -200,7 +200,8 @@ function App() {
 			) {
 				const zoom = canvasRef.current?.getZoom() as number;
 				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
-				const canvasHeight = (canvasRef.current?.height as number) / zoom;
+				const canvasHeight =
+					zoom > 1 ? (canvasRef.current?.height as number) : (canvasRef.current?.height as number) / zoom;
 				const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 				const line = new fabric.Line([pointer.x, (-pan[5] + 20) / zoom, pointer.x, canvasHeight], {
 					stroke: '#000',
@@ -215,13 +216,14 @@ function App() {
 					lockSkewingX: true,
 					lockSkewingY: true,
 					lockScalingFlip: true,
-					padding: 10 / zoom,
 					data: {
 						type: RULER_ELEMENTS.X_RULER_LINE,
 						id: generateId(),
 					},
 				});
-				line.set({ height: canvasHeight });
+				line.bringToFront();
+				line.set({ height: canvasHeight, width: 0 });
+				line.setCoords();
 				canvasRef.current?.add(line);
 				canvasRef.current?.renderAll();
 			} else if (
@@ -233,7 +235,8 @@ function App() {
 			) {
 				const zoom = canvasRef.current?.getZoom() as number;
 				const pointer = canvasRef.current?.getPointer(options.e) as { x: number; y: number };
-				const canvasWidth = (canvasRef.current?.width as number) / zoom;
+				const canvasWidth =
+					zoom > 1 ? (canvasRef.current?.width as number) : (canvasRef.current?.width as number) / zoom;
 				const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 				const line = new fabric.Line([(-pan[4] + 20) / zoom, pointer.y, canvasWidth, pointer.y], {
 					stroke: '#000',
@@ -248,13 +251,15 @@ function App() {
 					lockSkewingX: true,
 					lockSkewingY: true,
 					lockScalingFlip: true,
-					padding: 10 / zoom,
+					// padding: zoom > 1 ? 10 / zoom : 10 / zoom,
 					data: {
 						type: RULER_ELEMENTS.Y_RULER_LINE,
 						id: generateId(),
 					},
 				});
-				line.set({ width: canvasWidth });
+				line.bringToFront();
+				line.set({ width: canvasWidth, height: 0 });
+				line.setCoords();
 				canvasRef.current?.add(line);
 				canvasRef.current?.requestRenderAll();
 			} else if (
@@ -985,12 +990,12 @@ function App() {
 	// Update canvas size when viewport size changes
 	useEffect(() => {
 		const handleResize = () => {
-			const { width, height } = canvasContainerRef.current?.getBoundingClientRect();
+			const { width, height } = document.getElementById('canvas');
 			console.log(width, height);
-			canvasRef.current?.setDimensions({
-				width: width,
-				height: height - 60,
-			});
+			// canvasRef.current?.setDimensions({
+			// 	width: width,
+			// 	height: height - 60,
+			// });
 			if (showRuler) {
 				renderAxis(canvasRef);
 				rulerMarkerAdjust(canvasRef);
@@ -1250,7 +1255,7 @@ function App() {
 					</Box>
 				) : null}
 				<Center className={classes.center} ref={canvasContainerRef}>
-					<canvas id="canvas" />
+					<canvas className={classes.canvas} id="canvas" />
 				</Center>
 				{showSidebar ? (
 					<Box className={classes.right}>
@@ -1403,6 +1408,9 @@ const useStyles = createStyles(theme => ({
 		'&:hover': {
 			backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[2],
 		},
+	},
+	canvas: {
+		paddingTop: '2px',
 	},
 }));
 
