@@ -41,6 +41,7 @@ import SectionTitle from './components/SectionTitle';
 import { createSnappingLines, snapToObject } from './modules/snapping';
 import {
 	RULER_ELEMENTS,
+	RULER_LINES,
 	handleZoomRuler,
 	initializeRuler,
 	removeMovingMarker,
@@ -152,7 +153,7 @@ function App() {
 		});
 		canvasRef.current?.on('selection:updated', function (event) {
 			event?.deselected
-				?.filter(item => [RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(item.data?.type))
+				?.filter(item => Object.values(RULER_LINES).includes(item.data?.type))
 				.forEach(item => {
 					item.set({ stroke: '#000', fill: '#000' });
 				});
@@ -182,7 +183,7 @@ function App() {
 			console.log('e', e);
 			removeMovingMarker(canvasRef);
 			e?.deselected
-				?.filter(item => [RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(item.data?.type))
+				?.filter(item => Object.values(RULER_LINES).includes(item.data?.type))
 				.forEach(item => {
 					console.log('seeee');
 					item.set({ stroke: '#000', fill: '#000' });
@@ -217,7 +218,7 @@ function App() {
 					lockSkewingY: true,
 					lockScalingFlip: true,
 					data: {
-						type: RULER_ELEMENTS.X_RULER_LINE,
+						type: RULER_LINES.X_RULER_LINE,
 						id: generateId(),
 					},
 				});
@@ -253,7 +254,7 @@ function App() {
 					lockScalingFlip: true,
 					// padding: zoom > 1 ? 10 / zoom : 10 / zoom,
 					data: {
-						type: RULER_ELEMENTS.Y_RULER_LINE,
+						type: RULER_LINES.Y_RULER_LINE,
 						id: generateId(),
 					},
 				});
@@ -262,9 +263,7 @@ function App() {
 				line.setCoords();
 				canvasRef.current?.add(line);
 				canvasRef.current?.requestRenderAll();
-			} else if (
-				[RULER_ELEMENTS.X_RULER_LINE, RULER_ELEMENTS.Y_RULER_LINE].includes(options?.target?.data?.type)
-			) {
+			} else if (Object.values(RULER_LINES).includes(options?.target?.data?.type)) {
 				options.target?.set({ fill: 'red', stroke: 'red' });
 			}
 		});
@@ -276,7 +275,7 @@ function App() {
 
 	const onMoveHandler = (options: fabric.IEvent) => {
 		const target = options.target as fabric.Object;
-		if ([RULER_ELEMENTS.X_RULER_LINE].includes(target.data?.type)) {
+		if ([RULER_LINES.X_RULER_LINE].includes(target.data?.type)) {
 			removeMovingMarker(canvasRef);
 			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 			const zoom = canvasRef.current?.getZoom() as number;
@@ -291,7 +290,7 @@ function App() {
 				}),
 			);
 			return;
-		} else if ([RULER_ELEMENTS.Y_RULER_LINE].includes(target.data?.type)) {
+		} else if ([RULER_LINES.Y_RULER_LINE].includes(target.data?.type)) {
 			removeMovingMarker(canvasRef);
 			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 			const zoom = canvasRef.current?.getZoom() as number;
@@ -990,12 +989,12 @@ function App() {
 	// Update canvas size when viewport size changes
 	useEffect(() => {
 		const handleResize = () => {
-			const { width, height } = document.getElementById('canvas');
-			console.log(width, height);
-			// canvasRef.current?.setDimensions({
-			// 	width: width,
-			// 	height: height - 60,
-			// });
+			const width = window.innerWidth;
+			const height = window.innerHeight;
+			canvasRef.current?.setDimensions({
+				width: width,
+				height: height - 60,
+			});
 			if (showRuler) {
 				renderAxis(canvasRef);
 				rulerMarkerAdjust(canvasRef);

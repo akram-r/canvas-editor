@@ -6,8 +6,6 @@ import { FixedArray } from '../../types';
 export const RULER_ELEMENTS = {
 	X_RULER_BACKGROUND: 'X_RULER_BACKGROUND',
 	Y_RULER_BACKGROUND: 'Y_RULER_BACKGROUND',
-	X_RULER_LINE: 'X_RULER_LINE',
-	Y_RULER_LINE: 'Y_RULER_LINE',
 	X_RULER_MARKER: 'X_RULER_MARKER',
 	Y_RULER_MARKER: 'Y_RULER_MARKER',
 	X_RULER_MARKER_TEXT: 'X_RULER_MARKER_TEXT',
@@ -15,6 +13,11 @@ export const RULER_ELEMENTS = {
 	X_MOVE_MARKER: 'X_MOVE_MARKER',
 	Y_MOVE_MARKER: 'Y_MOVE_MARKER',
 	BLOCK: 'BLOCK',
+} as const;
+
+export const RULER_LINES = {
+	X_RULER_LINE: 'X_RULER_LINE',
+	Y_RULER_LINE: 'Y_RULER_LINE',
 } as const;
 
 // export function getCanvasZoomScale(zoom: number): number {
@@ -227,7 +230,7 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 	const canvasHeight = canvasRef.current?.height as number;
 	const canvasWidth = canvasRef.current?.width as number;
 	allObjects
-		.filter(x => x.data.type === RULER_ELEMENTS.X_RULER_LINE)
+		.filter(x => x.data.type === RULER_LINES.X_RULER_LINE)
 		.forEach(x => {
 			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 			x?.set({
@@ -241,7 +244,7 @@ export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canva
 		});
 
 	allObjects
-		.filter(x => x.data.type === RULER_ELEMENTS.Y_RULER_LINE)
+		.filter(x => x.data.type === RULER_LINES.Y_RULER_LINE)
 		.forEach(x => {
 			const pan = canvasRef.current?.viewportTransform as unknown as fabric.IPoint[];
 			x?.set({
