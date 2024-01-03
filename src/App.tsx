@@ -40,7 +40,6 @@ import { SmartObject } from './modules/reflection/helpers';
 import SectionTitle from './components/SectionTitle';
 import { createSnappingLines, snapToObject } from './modules/snapping';
 import {
-	RULER_ELEMENTS,
 	RULER_LINES,
 	addNewRulerLine,
 	renderRulerStepMarkers,
@@ -50,6 +49,7 @@ import {
 	renderRulerAxisBackground,
 	adjustRulerBackgroundPosition,
 	adjustRulerLinesPosition,
+	renderRulerOnMoveMarker,
 } from './modules/ruler';
 import { filterExportExcludes, filterSaveExcludes, filterSnappingExcludes } from './modules/utils/fabricObjectUtils';
 import { useModalStyles } from './styles/modal';
@@ -202,39 +202,10 @@ function App() {
 
 	const onMoveHandler = (options: fabric.IEvent) => {
 		const target = options.target as fabric.Object;
-		if (RULER_LINES.X_RULER_LINE === target.data?.type) {
-			removeRulerOnMoveMarker(canvasRef);
-			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
-			const zoom = canvasRef.current?.getZoom() as number;
-			canvasRef.current?.add(
-				new fabric.Text(`${Math.round(target.left as number)}`, {
-					left: (target.left as number) + 5 / zoom,
-					top: (-pan[5] + 20) / zoom,
-					fill: 'red',
-					fontFamily: 'Inter',
-					fontSize: 12 / zoom,
-					data: { type: RULER_ELEMENTS.X_ON_MOVE_MARKER, id: generateId() },
-				}),
-			);
-			return;
-		} else if (RULER_LINES.Y_RULER_LINE === target.data?.type) {
-			removeRulerOnMoveMarker(canvasRef);
-			const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
-			const zoom = canvasRef.current?.getZoom() as number;
-			canvasRef.current?.add(
-				new fabric.Text(`${Math.round(target.top as number)}`, {
-					left: (-pan[4] + 20) / zoom,
-					top: (target.top as number) - 5 / zoom,
-					fill: 'red',
-					fontFamily: 'Inter',
-					angle: 270,
-					fontSize: 12 / zoom,
-					data: { type: RULER_ELEMENTS.Y_ON_MOVE_MARKER, id: generateId() },
-				}),
-			);
+		if (Object.values(RULER_LINES).includes(target.data?.type)) {
+			renderRulerOnMoveMarker(target, canvasRef);
 			return;
 		}
-
 		snapToObject(
 			target as snappingObjectType,
 			filterSnappingExcludes(canvasRef.current?.getObjects()) as snappingObjectType[],

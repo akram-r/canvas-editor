@@ -36,12 +36,12 @@ export function getRulerZoomScale(zoom: number): number {
 	return 100;
 }
 
-const getAdjustedMarkerTextPosition = (num: number) => {
+function getAdjustedMarkerTextPosition(num: number) {
 	const sign = Math.sign(num) > 0;
 	const digits = Math.floor(Math.log10(Math.abs(num))) + 1;
 	if (num === 0 || digits === 1) return 3;
 	return sign ? 3 + digits : 5 + digits;
-};
+}
 
 // render ruler step lines and markers
 export function renderRulerStepMarkers(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
@@ -159,6 +159,7 @@ export function renderRulerAxisBackground(
 		width: canvasRef.current?.width,
 		height: 20,
 		selectable: false,
+		hoverCursor: 'default',
 		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
@@ -173,6 +174,7 @@ export function renderRulerAxisBackground(
 		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
 		width: 20,
 		selectable: false,
+		hoverCursor: 'default',
 		height: canvasRef.current?.height,
 		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
@@ -189,6 +191,7 @@ export function renderRulerAxisBackground(
 		width: 20 / zoom,
 		selectable: false,
 		height: 20 / zoom,
+		hoverCursor: 'default',
 		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
@@ -321,6 +324,7 @@ export function initializeRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 }
 
 export function addNewRulerLine(options: fabric.IEvent, canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
+	// create vertical line
 	if (
 		[RULER_ELEMENTS.X_RULER_BACKGROUND, RULER_ELEMENTS.X_RULER_MARKER, RULER_ELEMENTS.X_RULER_MARKER_TEXT].includes(
 			options?.target?.data?.type,
@@ -354,6 +358,7 @@ export function addNewRulerLine(options: fabric.IEvent, canvasRef: React.Mutable
 		line.setCoords();
 		canvasRef.current?.add(line);
 		canvasRef.current?.renderAll();
+		// create horizontal line
 	} else if (
 		[RULER_ELEMENTS.Y_RULER_BACKGROUND, RULER_ELEMENTS.Y_RULER_MARKER, RULER_ELEMENTS.Y_RULER_MARKER_TEXT].includes(
 			options?.target?.data?.type,
@@ -387,7 +392,45 @@ export function addNewRulerLine(options: fabric.IEvent, canvasRef: React.Mutable
 		line.setCoords();
 		canvasRef.current?.add(line);
 		canvasRef.current?.requestRenderAll();
+		// change color of selected ruler line
 	} else if (Object.values(RULER_LINES).includes(options?.target?.data?.type)) {
 		options.target?.set({ fill: 'red', stroke: 'red' });
+		renderRulerOnMoveMarker(options.target!, canvasRef);
+	}
+}
+
+export function renderRulerOnMoveMarker(
+	target: fabric.Object,
+	canvasRef: React.MutableRefObject<fabric.Canvas | null>,
+) {
+	if (RULER_LINES.X_RULER_LINE === target.data?.type) {
+		removeRulerOnMoveMarker(canvasRef);
+		const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
+		const zoom = canvasRef.current?.getZoom() as number;
+		canvasRef.current?.add(
+			new fabric.Text(`${Math.round(target.left as number)}`, {
+				left: (target.left as number) + 5 / zoom,
+				top: (-pan[5] + 20) / zoom,
+				fill: 'red',
+				fontFamily: 'Inter',
+				fontSize: 12 / zoom,
+				data: { type: RULER_ELEMENTS.X_ON_MOVE_MARKER, id: generateId() },
+			}),
+		);
+	} else if (RULER_LINES.Y_RULER_LINE === target.data?.type) {
+		removeRulerOnMoveMarker(canvasRef);
+		const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
+		const zoom = canvasRef.current?.getZoom() as number;
+		canvasRef.current?.add(
+			new fabric.Text(`${Math.round(target.top as number)}`, {
+				left: (-pan[4] + 20) / zoom,
+				top: (target.top as number) - 5 / zoom,
+				fill: 'red',
+				fontFamily: 'Inter',
+				angle: 270,
+				fontSize: 12 / zoom,
+				data: { type: RULER_ELEMENTS.Y_ON_MOVE_MARKER, id: generateId() },
+			}),
+		);
 	}
 }
