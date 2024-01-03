@@ -41,8 +41,6 @@ import SectionTitle from './components/SectionTitle';
 import { createSnappingLines, snapToObject } from './modules/snapping';
 import {
 	RULER_ELEMENTS,
-	findXAxis,
-	findYAxis,
 	handleZoomRuler,
 	initializeRuler,
 	removeMovingMarker,
@@ -133,15 +131,12 @@ function App() {
 	const redoable = useSelector((state: RootState) => state.history.redoable);
 
 	useEffect(() => {
-		console.log('color', canvasRef?.current);
-		colorSchemeRef.current = theme.colorScheme;
-		if (canvasRef.current) {
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
-			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
-			rulerMarkerAdjust(canvasRef, colorSchemeRef.current);
+		if (canvasRef.current && colorSchemeRef.current !== theme.colorScheme) {
+			rulerBackgroundAdjust(canvasRef, theme.colorScheme);
+			handleZoomRuler(canvasRef, theme.colorScheme);
 		}
-	}, [theme.colorScheme, canvasRef.current]);
-	const colorScheme = colorSchemeRef.current;
+		colorSchemeRef.current = theme.colorScheme;
+	}, [theme.colorScheme]);
 	useEffect(() => {
 		canvasRef.current = new fabric.Canvas('canvas', {
 			// create a canvas with clientWidth and clientHeight
@@ -213,7 +208,6 @@ function App() {
 					hasControls: false,
 					hasBorders: false,
 					lockRotation: true,
-
 					lockMovementY: true,
 					lockScalingX: true,
 					lockScalingY: true,
@@ -352,9 +346,9 @@ function App() {
 		centerBoardToCanvas(artboardRef);
 		setZoomLevel(canvasRef.current?.getZoom() || 1);
 		if (showRuler) {
-			handleZoomRuler(canvasRef, colorScheme);
-			renderAxis(canvasRef, colorScheme);
-			rulerBackgroundAdjust(canvasRef, colorScheme);
+			renderAxis(canvasRef, colorSchemeRef.current);
+			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -721,9 +715,9 @@ function App() {
 
 		setZoomLevel(canvasRef.current?.getZoom() || zoom);
 		if (showRuler) {
-			handleZoomRuler(canvasRef, colorSchemeRef.current);
 			renderAxis(canvasRef, colorSchemeRef.current);
 			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -733,6 +727,11 @@ function App() {
 			zoomFromCenter(zoom + 0.1);
 			setZoomLevel(canvasRef.current?.getZoom() || zoom + 0.1);
 		}
+		if (showRuler) {
+			renderAxis(canvasRef, colorSchemeRef.current);
+			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
+		}
 	};
 
 	const zoomOut = () => {
@@ -740,6 +739,11 @@ function App() {
 		if (zoom) {
 			zoomFromCenter(zoom - 0.1);
 			setZoomLevel(canvasRef.current?.getZoom() || zoom - 0.1);
+		}
+		if (showRuler) {
+			renderAxis(canvasRef, colorSchemeRef.current);
+			rulerBackgroundAdjust(canvasRef, colorSchemeRef.current);
+			handleZoomRuler(canvasRef, colorSchemeRef.current);
 		}
 	};
 
@@ -893,23 +897,23 @@ function App() {
 		});
 	}, [selectedArtboard, artboards]);
 
-	useEffect(() => {
-		const xaxis = findXAxis(canvasRef);
-		const yaxis = findYAxis(canvasRef);
-		xaxis?.set({
-			fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
-			stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
-		});
-		yaxis?.set({
-			fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
-			stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
-		});
-	}, [colorScheme, selectedArtboard, artboards]);
+	// useEffect(() => {
+	// 	const xaxis = findXAxis(canvasRef);
+	// 	const yaxis = findYAxis(canvasRef);
+	// 	xaxis?.set({
+	// 		fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
+	// 		stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
+	// 	});
+	// 	yaxis?.set({
+	// 		fill: theme.colorScheme === 'dark' ? '#fff' : '#000',
+	// 		stroke: theme.colorScheme === 'dark' ? '#fff' : '#000',
+	// 	});
+	// }, [selectedArtboard, artboards]);
 
 	useEffect(() => {
 		console.log('show', showRuler);
 		if (showRuler) {
-			initializeRuler(canvasRef);
+			initializeRuler(canvasRef, colorSchemeRef.current);
 		} else {
 			removeRuler(canvasRef);
 		}
@@ -977,17 +981,21 @@ function App() {
 		return () => {
 			canvas.off('mouse:wheel', handlePan);
 		};
-	}, [selectedArtboard?.height, selectedArtboard?.width]);
+	}, [selectedArtboard?.height, selectedArtboard?.width, showRuler]);
 	// Update canvas size when viewport size changes
 	useEffect(() => {
 		const handleResize = () => {
+			const { width, height } = canvasContainerRef.current?.getBoundingClientRect();
+			console.log(width, height);
 			canvasRef.current?.setDimensions({
-				width: window.innerWidth,
-				height: window.innerHeight - 60,
+				width: width,
+				height: height - 60,
 			});
-			// renderAxis(canvasRef);
-			// handleZoomRuler(canvasRef);
-			// rulerMarkerAdjust(canvasRef);
+			if (showRuler) {
+				renderAxis(canvasRef);
+				rulerMarkerAdjust(canvasRef);
+				handleZoomRuler(canvasRef);
+			}
 		};
 
 		window.addEventListener('resize', handleResize);

@@ -9,11 +9,13 @@ import {
 	IconPalette,
 	IconSettings,
 	IconSun,
+	IconRuler,
 } from '@tabler/icons-react';
 import { getAltKey, getModKey } from '../../modules/utils/keyboard';
 import ColorSpaceSwitch from '../../modules/colorSpace';
 import { useMenuStyles } from '../../styles/menu';
 import SnapDistanceModal from '../snapping/SnapDistanceModal';
+import { FABRIC_JSON_ALLOWED_KEYS } from '../../constants';
 
 interface Props {
 	canvasRef: React.RefObject<fabric.Canvas>;
@@ -41,7 +43,8 @@ const SettingsMenu: React.FC<Props> = ({
 	const [colorSpaceModalOpened, { open: openColorSpaceModal, close: closeColorSpaceModal }] = useDisclosure();
 	const [snapDistanceModalOpened, { open: openSnapDistanceModal, close: closeSnapDistanceModal }] = useDisclosure();
 	const debug = () => {
-		console.log(canvasRef.current?.toJSON(['data', 'selectable', 'effects']));
+		console.log('JSON=', canvasRef.current?.toJSON(FABRIC_JSON_ALLOWED_KEYS));
+		console.log('All Fabric Objects', canvasRef.current?.getObjects());
 		notifications.show({
 			icon: <IconBug size={14} />,
 			title: 'Logged state',
@@ -104,6 +107,14 @@ const SettingsMenu: React.FC<Props> = ({
 						Show/hide UI
 					</Menu.Item>
 					<Menu.Item
+						icon={<IconRuler size={14} />}
+						className={classes.item}
+						rightSection={<Text size={11}>{getAltKey()} + R</Text>}
+						onClick={() => toggleRuler()}
+					>
+						Show/hide Ruler
+					</Menu.Item>
+					<Menu.Item
 						icon={<IconArrowBarToLeft size={14} />}
 						className={classes.item}
 						onClick={openSnapDistanceModal}
@@ -139,7 +150,6 @@ const SettingsMenu: React.FC<Props> = ({
 						color="yellow"
 						onClick={() => {
 							debug();
-							console.log('objects', canvasRef.current?.getObjects());
 						}}
 						rightSection={<Text size={11}>{getAltKey()} + Shift + D</Text>}
 					>

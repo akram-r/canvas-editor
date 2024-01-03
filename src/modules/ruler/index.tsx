@@ -69,13 +69,14 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 		});
 	const { left, top } = getCanvasVisibleTopLeft(canvasRef);
 	const zoom = canvasRef.current?.getZoom() as number;
+	console.log('zoom inside handlezoo,', zoom);
 	const pan = canvasRef.current?.viewportTransform as FixedArray<number, 6>;
 	const interval = getCanvasZoomScale(zoom);
 	const nearest = Math.round(left / interval) * interval;
 	const canvasWidth = canvasRef.current?.width as number;
 	for (let i = nearest; i < (canvasWidth + -pan[4]) / zoom; i += interval) {
 		const line = new fabric.Line([i, 0, i, 5 / zoom], {
-			stroke: colorScheme === 'dark' ? '#fff' : '#000',
+			stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 			strokeWidth: 2 / zoom,
 			left: i,
 			selectable: false,
@@ -92,7 +93,7 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 			top: -pan[5] / zoom,
 			fontSize: 10 / zoom,
 			strokeWidth: 2 / zoom,
-			fill: colorScheme === 'dark' ? '#fff' : '#000',
+			fill: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 			fontFamily: 'Inter',
 			selectable: false,
 			hoverCursor: 'default',
@@ -110,7 +111,7 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 	const canvasHeight = canvasRef.current?.height as number;
 	for (let i = nearestTop; i < (canvasHeight + -pan[5]) / zoom; i += interval) {
 		const line = new fabric.Line([0, i, 5 / zoom, i], {
-			stroke: colorScheme === 'dark' ? '#fff' : '#000',
+			stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 			strokeWidth: 2 / zoom,
 			top: i,
 			selectable: false,
@@ -128,7 +129,7 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 			fontSize: 10 / zoom,
 			strokeWidth: 2 / zoom,
 			fontFamily: 'Inter',
-			fill: colorScheme === 'dark' ? '#fff' : '#000',
+			fill: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 			selectable: false,
 			angle: 270,
 			hoverCursor: 'default',
@@ -147,8 +148,8 @@ export function handleZoomRuler(canvasRef: React.MutableRefObject<fabric.Canvas 
 		strokeWidth: 1 / zoom,
 		width: 20 / zoom,
 		height: 20 / zoom,
-		stroke: colorScheme === 'dark' ? '#fff' : '#000',
-		fill: colorScheme === 'dark' ? '#000' : '#fff',
+		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
+		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
 	});
 	block?.moveTo((canvasRef.current?.getObjects()?.length as number) - 1);
 	block?.setCoords();
@@ -160,11 +161,11 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 	const xaxis = new fabric.Rect({
 		left: 0,
 		top: 0,
-		fill: colorScheme === 'dark' ? '#000' : '#fff',
+		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
 		width: canvasRef.current?.width,
 		height: 20,
 		selectable: false,
-		stroke: colorScheme === 'dark' ? '#fff' : '#000',
+		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
 			displayText: 'Shape',
@@ -176,11 +177,11 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 	const yaxis = new fabric.Rect({
 		left: 0,
 		top: 0,
-		fill: colorScheme === 'dark' ? '#000' : '#fff',
+		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
 		width: 20,
 		selectable: false,
 		height: canvasRef.current?.height,
-		stroke: colorScheme === 'dark' ? '#fff' : '#000',
+		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
 			displayText: 'Shape',
@@ -192,11 +193,11 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 	const block = new fabric.Rect({
 		left: 0,
 		top: 0,
-		fill: colorScheme === 'dark' ? '#000' : '#fff',
+		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
 		width: 20 / zoom,
 		selectable: false,
 		height: 20 / zoom,
-		stroke: colorScheme === 'dark' ? '#fff' : '#000',
+		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		strokeWidth: 1 / zoom,
 		data: {
 			displayText: 'Shape',
@@ -220,6 +221,7 @@ export function renderAxis(canvasRef: React.MutableRefObject<fabric.Canvas | nul
 }
 
 export function rulerMarkerAdjust(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
+	console.log(colorScheme);
 	const allObjects = canvasRef?.current?.getObjects() as fabric.Object[];
 	const zoom = canvasRef.current?.getZoom() as number;
 	const canvasHeight = canvasRef.current?.height as number;
@@ -289,7 +291,8 @@ export function rulerBackgroundAdjust(canvasRef: React.MutableRefObject<fabric.C
 		left: -pan[4] / zoom,
 		top: -pan[5] / zoom,
 		strokeWidth: 1 / zoom,
-		fill: colorScheme === 'dark' ? '#000' : '#fff',
+		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
+		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
 		width: canvasWidth / zoom,
 		height: 20 / zoom,
 	});
@@ -298,7 +301,8 @@ export function rulerBackgroundAdjust(canvasRef: React.MutableRefObject<fabric.C
 		top: -pan[5] / zoom,
 		strokeWidth: 1 / zoom,
 		width: 20 / zoom,
-		fill: colorScheme === 'dark' ? '#000' : '#fff',
+		stroke: colorScheme === 'dark' ? '#fff' : '#2c2c2c',
+		fill: colorScheme === 'dark' ? '#2c2c2c' : '#fff',
 		height: canvasHeight / zoom,
 	});
 	xaxis?.moveTo((canvasRef.current?.getObjects()?.length as number) + 1);
@@ -319,10 +323,10 @@ export function removeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | nu
 	canvasRef.current?.renderAll();
 }
 
-export function initializeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | null>) {
-	renderAxis(canvasRef);
-	rulerBackgroundAdjust(canvasRef);
-	rulerMarkerAdjust(canvasRef);
-	handleZoomRuler(canvasRef);
+export function initializeRuler(canvasRef: React.MutableRefObject<fabric.Canvas | null>, colorScheme = 'light') {
+	renderAxis(canvasRef, colorScheme);
+	rulerBackgroundAdjust(canvasRef, colorScheme);
+	rulerMarkerAdjust(canvasRef, colorScheme);
+	handleZoomRuler(canvasRef, colorScheme);
 	canvasRef.current?.requestRenderAll();
 }
