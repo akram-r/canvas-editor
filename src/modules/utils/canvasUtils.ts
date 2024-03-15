@@ -1,3 +1,4 @@
+import { Canvas } from 'fabric';
 import { FixedArray } from '../../types';
 
 /**

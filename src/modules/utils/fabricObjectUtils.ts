@@ -1,3 +1,4 @@
+import { FabricObject } from 'fabric';
 import { RULER_ELEMENTS, RULER_LINES } from '../ruler';
 
 // filters snapLine type and snapping ignore objects

@@ -221,7 +221,7 @@ const Animation = ({ currentSelectedElements, saveArtboardChanges, canvas }: Ani
 		});
 		console.log('renderCanvas', renderCanvas);
 
-		const stateJSON = canvas.(FABRIC_JSON_ALLOWED_KEYS);
+		const stateJSON = canvas.toObject(FABRIC_JSON_ALLOWED_KEYS);
 
 		const adjustKeyframes = (keyframes: Keyframe[]) => {
 			if (!keyframes) {
